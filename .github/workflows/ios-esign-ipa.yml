@@ -1,0 +1,106 @@
+name: Build Folia iOS IPA (eSign)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - ios/esign-ipa
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'api-ts/**'
+      - 'vite.config.ts'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'capacitor.config.ts'
+      - '.github/workflows/ios-esign-ipa.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: folia-ios-esign-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    name: Build unsigned iOS app
+    runs-on: macos-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Install temporary Capacitor toolchain
+        run: npm install --no-save --no-package-lock @capacitor/core@8.4.2 @capacitor/ios@8.4.2 @capacitor/cli@8.4.2
+
+      - name: Build Folia web assets for Capacitor
+        env:
+          FOLIA_BUILD_TARGET: capacitor
+        run: npm run build
+
+      - name: Generate and sync iOS project
+        run: |
+          set -euo pipefail
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Build unsigned iOS app
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios-derived \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build/ios-xcodebuild.log
+
+      - name: Package unsigned IPA for eSign
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP_PATH="build/ios-derived/Build/Products/Release-iphoneos/App.app"
+          test -d "$APP_PATH"
+          STAGING="build/unsigned-ipa"
+          rm -rf "$STAGING" Folia-iOS-unsigned.ipa
+          mkdir -p "$STAGING/Payload"
+          ditto "$APP_PATH" "$STAGING/Payload/Folia.app"
+          (
+            cd "$STAGING"
+            /usr/bin/zip -qry "$GITHUB_WORKSPACE/Folia-iOS-unsigned.ipa" Payload
+          )
+          unzip -l Folia-iOS-unsigned.ipa | head -n 25
+          test -s Folia-iOS-unsigned.ipa
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v6
+        with:
+          name: Folia-iOS-unsigned-${{ github.run_number }}
+          path: Folia-iOS-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload Xcode build log
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: Folia-iOS-xcode-log-${{ github.run_number }}
+          path: build/ios-xcodebuild.log
+          if-no-files-found: ignore
+          retention-days: 7
