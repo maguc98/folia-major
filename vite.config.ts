@@ -187,6 +187,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
   // 官方 / 自部署 / 非官方：设置里的版本号、扫码诊断报告和反馈入口都会读它
   // 开发服务器可以用 FOLIA_DEV_BUILD_KIND 钉住（Playwright 用）；vite build 不认这个变量。
   const buildKind = resolveDevBuildKindOverride(_config.command, process.env) ?? resolveBuildKind(process.env);
+  const isCapacitorBuild = process.env.FOLIA_BUILD_TARGET === 'capacitor';
 
   const appVersionLabel = process.env.APP_VERSION_LABEL?.trim() || 'Realeco';
   const appReleaseChannel = process.env.APP_RELEASE_CHANNEL?.trim().toLowerCase() || 'realeco';
@@ -203,7 +204,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
     .slice(0, 12)}`;
 
   return {
-    base: process.env.ELECTRON === 'true' ? './' : '/',
+    base: process.env.ELECTRON === 'true' || isCapacitorBuild ? './' : '/',
     worker: {
       format: 'es'
     },
@@ -270,7 +271,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
       traditionalLocalePlugin(),
       icuFoliaDataPlugin(),
       react(),
-      VitePWA({
+      ...(isCapacitorBuild ? [] : [VitePWA({
         registerType: 'autoUpdate',
         includeAssets: ['icon.svg'],
         devOptions: {
@@ -312,7 +313,7 @@ export default async function viteConfig(_config: ConfigEnv): Promise<UserConfig
             }
           ]
         }
-      })
+      })]),
     ],
     define: {
       '__COMMIT_HASH__': JSON.stringify(commitHash + commitSuffix),
