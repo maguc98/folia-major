@@ -61,14 +61,14 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build
-          xcodebuild \\
-            -project ios/App/App.xcodeproj \\
-            -scheme App \\
-            -configuration Release \\
-            -sdk iphoneos \\
-            -destination 'generic/platform=iOS' \\
-            -derivedDataPath build/ios-derived \\
-            CODE_SIGNING_ALLOWED=NO \\
+          xcodebuild \
+            -project ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/ios-derived \
+            CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee build/ios-xcodebuild.log
 
       - name: Package unsigned IPA for eSign
