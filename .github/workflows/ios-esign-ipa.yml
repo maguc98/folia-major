@@ -104,3 +104,5 @@ jobs:
           path: build/ios-xcodebuild.log
           if-no-files-found: ignore
           retention-days: 7
+
+# Re-trigger after switching to the Intel macOS runner.
