@@ -1,0 +1,9 @@
+{
+  "appId": "top.izuna.foliamajor",
+  "appName": "Folia",
+  "webDir": "dist",
+  "backgroundColor": "#09090b",
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
