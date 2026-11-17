@@ -127,3 +127,8 @@ The deeper static reconstruction is in `docs/ios-build379/native-player-state-ma
 The Swift router scaffold has also been hardened: JSON booleans are distinguished from numeric `NSNumber` values, generation is constrained to a non-negative safe integer, seek/volume values must be finite, optional load queues are bounded, and media URL acceptance is delegated to an explicit host policy. Its default policy allows only HTTP(S) URLs with a host; local `file:` media is denied unless the integrating app supplies a sandbox-aware allowlist. This is a new security policy for the scaffold, not a claim about the original binary's URL policy.
 
 The router remains uncompiled against the iOS SDK and has not been runtime-tested on a device.
+
+
+## Native player runtime test plan
+
+The executable also exposes stored-property names for the native player's current URL/session/generation, track identity, playback intent, queue, item observers, pending seek, interruption recovery and auto-advance bookkeeping. A repeatable device test matrix based on the embedded self-test markers is documented in `docs/ios-build379/native-player-runtime-test-plan.md`. It separates test intentions visible in the binary from tests actually executed: no original-app self-test run or replacement-device test is claimed.
