@@ -199,6 +199,7 @@ function createAppleMusicPlaybackDispatcher({
         if (!LOOP_MODES.has(p.loopMode)) return { ok: false, error: "invalid-request" };
         if (typeof mk.setRepeatMode === "function") mk.setRepeatMode(p.loopMode === "one" ? 1 : p.loopMode === "all" ? 2 : 0);
       } else if (operation === "prepareNext") {
+        if (typeof p.catalogId !== "string" || !CATALOG_ID.test(p.catalogId)) return { ok: false, error: "invalid-request" };
         try { await alignStorefront(mk); } catch {}
         const idOf = item => logicalIdOf(playableIdOf(item));
         if (String(idOf(mk.nowPlayingItem)) !== p.catalogId) return { ok: false, error: "stale-request" };
@@ -285,4 +286,9 @@ function installAppleMusicPlaybackDispatcher(windowRef, options = {}) {
   return service;
 }
 
-module.exports = { createAppleMusicPlaybackDispatcher, installAppleMusicPlaybackDispatcher };
+if (typeof window !== "undefined") {
+  try { installAppleMusicPlaybackDispatcher(window); } catch {}
+}
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = { createAppleMusicPlaybackDispatcher, installAppleMusicPlaybackDispatcher };
+}
