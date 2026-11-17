@@ -27,6 +27,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var pendingSeek: Double?
     private var endedForURL: String?
     private var pendingFreshTrackEvent = false
+    private var audioPreparingItemID: ObjectIdentifier?
     private var interruptedBySystem = false
     private let isAllowedMediaURL: (URL) -> Bool
     private let audioAnalyzer = NativeAudioTapAnalyzer()
@@ -183,13 +184,9 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         pendingSeek = position
         desiredPlaying = bool(command["autoplay"]) ?? false
 
+        player.pause()
         player.replaceCurrentItem(with: item)
         attachObservers(to: item)
-        if desiredPlaying {
-            player.play()
-        } else {
-            player.pause()
-        }
         emitState()
     }
 
@@ -212,14 +209,25 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                 guard let self, let item, self.player.currentItem === item else { return }
                 switch item.status {
                 case .readyToPlay:
-                    self.attachAudioAnalysis(to: item)
-                    if let pending = self.pendingSeek {
-                        self.pendingSeek = nil
-                        self.seek(pending)
+                    self.attachAudioAnalysis(to: item) {
+                        guard self.player.currentItem === item else { return }
+                        let finishReady = {
+                            guard self.player.currentItem === item else { return }
+                            if self.desiredPlaying { self.player.play() }
+                            else { self.player.pause() }
+                            self.emit(["type": "loaded", "fresh": self.consumeFreshTrackFlag()])
+                            self.emitState()
+                        }
+                        if let pending = self.pendingSeek {
+                            self.pendingSeek = nil
+                            let target = CMTime(seconds: pending, preferredTimescale: 600)
+                            self.player.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                                DispatchQueue.main.async(execute: finishReady)
+                            }
+                        } else {
+                            finishReady()
+                        }
                     }
-                    if self.desiredPlaying { self.player.play() }
-                    self.emit(["type": "loaded", "fresh": self.consumeFreshTrackFlag()])
-                    self.emitState()
                 case .failed:
                     self.emit(["type": "error", "message": item.error?.localizedDescription ?? "item-failed"])
                 case .unknown:
@@ -269,24 +277,30 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         }
     }
 
-    private func attachAudioAnalysis(to item: AVPlayerItem) {
+    private func attachAudioAnalysis(to item: AVPlayerItem, completion: @escaping () -> Void) {
+        let identifier = ObjectIdentifier(item)
+        guard audioPreparingItemID != identifier else { return }
+        audioPreparingItemID = identifier
         let asset = item.asset
         Task { [weak self, weak item] in
             do {
                 let tracks = try await asset.loadTracks(withMediaType: .audio)
-                guard let audioTrack = tracks.first else { return }
                 await MainActor.run {
-                    guard let self, let item, self.player.currentItem === item, item.audioMix == nil else { return }
-                    do {
-                        item.audioMix = try self.audioAnalyzer.makeAudioMix(for: audioTrack)
-                    } catch {
-                        self.emit(["type": "error", "message": "audio-analysis-unavailable"])
+                    guard let self, let item, self.player.currentItem === item else { return }
+                    if let audioTrack = tracks.first, item.audioMix == nil {
+                        do {
+                            item.audioMix = try self.audioAnalyzer.makeAudioMix(for: audioTrack)
+                        } catch {
+                            self.emit(["type": "error", "message": "audio-analysis-unavailable"])
+                        }
                     }
+                    completion()
                 }
             } catch {
                 await MainActor.run {
                     guard let self, let item, self.player.currentItem === item else { return }
                     self.emit(["type": "error", "message": "audio-analysis-track-unavailable"])
+                    completion()
                 }
             }
         }
@@ -294,6 +308,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
 
     private func detachCurrentItemObservers() {
         player.currentItem?.audioMix = nil
+        audioPreparingItemID = nil
         audioAnalyzer.reset()
         currentItemObservation?.invalidate()
         currentItemObservation = nil
@@ -537,7 +552,7 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         pendingSeek = position
         replacement.replaceCurrentItem(with: item)
         attachObservers(to: item)
-        if shouldResume { replacement.play() } else { replacement.pause() }
+        replacement.pause()
         emitState()
     }
 
