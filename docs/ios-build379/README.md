@@ -34,7 +34,7 @@ The IPA contains a compiled native executable and packaged web/runtime assets. I
 
 ## Security and licensing
 
-- The archive contains `public/nodejs-project/.auth-state/qq-device.json`; this authentication/device-state file is deliberately excluded from any source import. Do not publish it.
+- The original IPA contained `public/nodejs-project/.auth-state/qq-device.json`; this authentication/device-state file is excluded. The first clean pass also revealed a bundled private key/certificate set, a device-ID dataset, and backup snapshots. Sanitized v2 excludes those seven paths as well. Do not publish them.
 - Do not commit `_CodeSignature`, provisioning profiles, signing identities, private keys, tokens, or user session state.
 - Inspect runtime configuration and bundled resources for credentials, personal data, and private endpoints before importing.
 - Preserve upstream and dependency license notices. The source repository's license is AGPL-3.0; review dependency-specific terms and comply with applicable attribution and source-availability obligations.
@@ -54,7 +54,7 @@ The ZIP must first be placed at a stable HTTPS download location (for example, a
 
 ## Import status
 
-The branch and baseline documentation exist. The complete IPA and extracted web resources have **not** been uploaded to this repository. A sanitized web payload archive was prepared locally: `Folia-iOS-3.0.6-build379-public-clean.zip` (43,202,482 bytes; SHA-256 `7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef`). It contains the `public/` tree with the authentication-state directory removed. The connected GitHub operations available here do not expose a binary Git LFS or release-asset upload path, so the archive still needs to be uploaded through a binary-capable GitHub path. This is a prepared sanitized payload, not a completed repository import.
+The branch and baseline documentation exist. The complete IPA and extracted web resources have **not** been uploaded to this repository. A second sanitization pass removed the private key/certificate files, device-ID dataset, and three backup snapshots discovered during static scanning. The resulting web payload archive was prepared locally: `Folia-iOS-3.0.6-build379-public-sanitized-v2.zip` (41,823,396 bytes; SHA-256 `f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32`). It contains the `public/` tree with the authentication-state directory removed. The connected GitHub operations available here do not expose a binary Git LFS or release-asset upload path, so the archive still needs to be uploaded through a binary-capable GitHub path. This is a prepared sanitized payload, not a completed repository import.
 
 ## Next engineering steps
 
