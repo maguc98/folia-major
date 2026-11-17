@@ -85,7 +85,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             desiredPlaying = true
             if endedForURL == currentURL?.absoluteString, !upcoming.isEmpty {
                 advanceIfPossible(reason: "user-resume-after-end")
-            } else {
+            } else if player.currentItem?.status == .readyToPlay {
                 player.play()
             }
             emitState()
@@ -483,7 +483,7 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         desiredPlaying = true
         if endedForURL == currentURL?.absoluteString, !upcoming.isEmpty {
             advanceIfPossible(reason: "remote-play-after-end")
-        } else {
+        } else if player.currentItem?.status == .readyToPlay {
             player.play()
         }
         emitState()
@@ -530,7 +530,6 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         let savedURL = currentURL
         let rawPosition = player.currentTime().seconds
         let position = rawPosition.isFinite && rawPosition >= 0 ? rawPosition : 0
-        let shouldResume = desiredPlaying
         if let timeObserver {
             player.removeTimeObserver(timeObserver)
             self.timeObserver = nil
