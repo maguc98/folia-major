@@ -238,44 +238,107 @@ public final class FoliaPlaybackKeeper {
 
     private func installAudioSessionObservers() {
         let center = NotificationCenter.default
-        observers.append(center.addObserver(
-            forName: AVAudioSession.interruptionNotification,
-            object: AVAudioSession.sharedInstance(),
-            queue: .main
-        ) { [weak self] notification in
-            guard let self,
-                  let userInfo = notification.userInfo,
-                  let rawType = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
-                  let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
+        let audioSession = AVAudioSession.sharedInstance()
 
-            switch type {
-            case .began:
-                self.transport?.playbackInterruptionBegan()
-            case .ended:
-                let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-                let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                let systemAllowsResume = options.contains(.shouldResume)
-                var sessionReactivated = false
-                if systemAllowsResume {
+        if #available(iOS 27.0, *) {
+            // iOS 27's lifecycle notifications replace the legacy began/ended
+            // pair and avoid getting stuck when an interruption-end event is lost.
+            observers.append(center.addObserver(
+                forName: AVAudioSession.didBecomeInactiveNotification,
+                object: audioSession,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let context = notification.userInfo?[AVAudioSession.deactivationContextKey]
+                        as? AVAudioSession.DeactivationContext else { return }
+                if context.source == .system {
+                    self.transport?.playbackInterruptionBegan()
+                    self.refreshNowPlayingInfo()
+                }
+            })
+
+            observers.append(center.addObserver(
+                forName: AVAudioSession.resumptionRecommendationNotification,
+                object: audioSession,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let context = notification.userInfo?[AVAudioSession.resumptionContextKey]
+                        as? AVAudioSession.ResumptionContext else { return }
+
+                guard context.recommendation == .shouldResume else {
+                    self.transport?.playbackInterruptionEnded(shouldResume: false)
+                    self.refreshNowPlayingInfo()
+                    return
+                }
+
+                Task { [weak self] in
                     do {
-                        try AVAudioSession.sharedInstance().setActive(true)
-                        self.isAudioSessionActive = true
-                        sessionReactivated = true
+                        let activated = try await audioSession.activate()
+                        await MainActor.run {
+                            guard let self else { return }
+                            self.isAudioSessionActive = activated
+                            self.transport?.playbackInterruptionEnded(shouldResume: activated)
+                            self.refreshNowPlayingInfo()
+                        }
                     } catch {
-                        self.onAudioSessionError?(error)
+                        await MainActor.run {
+                            guard let self else { return }
+                            self.onAudioSessionError?(error)
+                            self.transport?.playbackInterruptionEnded(shouldResume: false)
+                            self.refreshNowPlayingInfo()
+                        }
                     }
                 }
-                self.transport?.playbackInterruptionEnded(
-                    shouldResume: systemAllowsResume && sessionReactivated
-                )
-            @unknown default:
-                break
-            }
-            self.refreshNowPlayingInfo()
-        })
+            })
+
+            observers.append(center.addObserver(
+                forName: AVAudioSession.didBecomeActiveNotification,
+                object: audioSession,
+                queue: .main
+            ) { [weak self] _ in
+                self?.isAudioSessionActive = true
+                self?.refreshNowPlayingInfo()
+            })
+        } else {
+            // iOS 15–26 fallback. On newer systems the legacy shouldResume
+            // option is deprecated in favor of ResumptionRecommendation.
+            observers.append(center.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: audioSession,
+                queue: .main
+            ) { [weak self] notification in
+                guard let self,
+                      let userInfo = notification.userInfo,
+                      let rawType = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
+
+                switch type {
+                case .began:
+                    self.transport?.playbackInterruptionBegan()
+                case .ended:
+                    let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                    let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                    let shouldResume = options.contains(.shouldResume)
+                    if shouldResume {
+                        do {
+                            try audioSession.setActive(true)
+                            self.isAudioSessionActive = true
+                        } catch {
+                            self.onAudioSessionError?(error)
+                        }
+                    }
+                    self.transport?.playbackInterruptionEnded(shouldResume: shouldResume && self.isAudioSessionActive)
+                @unknown default:
+                    break
+                }
+                self.refreshNowPlayingInfo()
+            })
+        }
+
         observers.append(center.addObserver(
             forName: AVAudioSession.routeChangeNotification,
-            object: AVAudioSession.sharedInstance(),
+            object: audioSession,
             queue: .main
         ) { [weak self] notification in
             guard let self,
@@ -283,6 +346,22 @@ public final class FoliaPlaybackKeeper {
                   let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason) else { return }
             self.transport?.playbackRouteChanged(outputWasDisconnected: reason == .oldDeviceUnavailable)
             self.refreshNowPlayingInfo()
+        })
+
+        observers.append(center.addObserver(
+            forName: AVAudioSession.mediaServicesWereResetNotification,
+            object: audioSession,
+            queue: .main
+        ) { [weak self] _ in
+            // Reconfigure the category after a media-services reset. Do not
+            // auto-start: the transport's desired-playing intent is authoritative.
+            do {
+                try audioSession.setCategory(.playback, mode: .default, options: [])
+                self?.isAudioSessionActive = false
+                self?.refreshNowPlayingInfo()
+            } catch {
+                self?.onAudioSessionError?(error)
+            }
         })
     }
 }
