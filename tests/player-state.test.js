@@ -104,3 +104,39 @@ test("interruption end changes lifecycle but does not invent a resume command", 
   assert.equal(state.desiredPlaying, false);
   assert.equal(state.transport, "paused");
 });
+
+
+test("duplicate ended notifications for the same URL do not advance twice", () => {
+  let state = createPlayerState();
+  state = send(state, "load", { track: track("a"), autoplay: true, upcoming: [track("b")] });
+  state = send(state, "ended", { url: "https://media.example/a.m4a" });
+  assert.equal(state.current.trackKey, "b");
+  const afterFirstEnd = state;
+  state = send(state, "ended", { url: "https://media.example/a.m4a" });
+  assert.deepEqual(state, afterFirstEnd);
+});
+
+test("late queue does not auto-start after the user has paused", () => {
+  let state = createPlayerState();
+  state = send(state, "load", { track: track("a"), autoplay: true, upcoming: [] });
+  state = send(state, "ready");
+  state = send(state, "pause");
+  state = send(state, "ended");
+  state = send(state, "queue", { upcoming: [track("b")], previous: [] });
+  assert.equal(state.current.trackKey, "a");
+  assert.equal(state.transport, "ended");
+  assert.equal(state.waitingForQueue, true);
+  state = send(state, "play");
+  assert.equal(state.current.trackKey, "b");
+  assert.equal(state.transport, "loading");
+});
+
+test("late ended event from replaced URL cannot advance the new item", () => {
+  let state = createPlayerState();
+  state = send(state, "load", { track: track("a"), autoplay: true, upcoming: [track("b"), track("c")] });
+  state = send(state, "ended", { url: "https://media.example/a.m4a" });
+  assert.equal(state.current.trackKey, "b");
+  const before = state;
+  state = send(state, "ended", { url: "https://media.example/a.m4a" });
+  assert.deepEqual(state, before);
+});
