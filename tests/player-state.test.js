@@ -84,6 +84,7 @@ test("invalid track load does not mutate state", () => {
 test("background and foreground transitions preserve explicit pause intent", () => {
   let state = createPlayerState();
   state = send(state, "load", { track: track("a"), autoplay: true });
+  state = send(state, "ready");
   state = send(state, "pause");
   state = send(state, "background");
   state = send(state, "foreground");
@@ -95,6 +96,7 @@ test("background and foreground transitions preserve explicit pause intent", () 
 test("interruption end changes lifecycle but does not invent a resume command", () => {
   let state = createPlayerState();
   state = send(state, "load", { track: track("a"), autoplay: true });
+  state = send(state, "ready");
   state = send(state, "interruption-began");
   state = send(state, "pause");
   state = send(state, "interruption-ended");
