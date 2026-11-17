@@ -109,6 +109,9 @@ public final class FoliaBridgeRouter: NSObject {
             lock.unlock()
             guard shouldReply else { return }
 
+            guard let ok = payload["ok"] as? Bool else { return }
+            if ok && !payload.keys.contains("data") { return }
+            if !ok && !(payload["error"] is String) { return }
             let envelope: [String: Any] = ["id": requestID, "payload": payload]
             guard let json = Self.javascriptLiteral(envelope) else { return }
             self?.evaluate("window.__foliaProviderAuthReply && window.__foliaProviderAuthReply(\(json));")
