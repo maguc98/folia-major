@@ -229,7 +229,8 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                     "playing": self.player.rate > 0,
                     "position": time.seconds,
                     "duration": duration.isFinite && duration > 0 ? duration : 0,
-                    "sentAtMs": Date().timeIntervalSince1970 * 1000
+                    "sentAtMs": Date().timeIntervalSince1970 * 1000,
+                    "fresh": self.consumeFreshTrackFlag()
                 ])
             }
         }
