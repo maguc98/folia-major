@@ -12,6 +12,8 @@ public struct FoliaPlaybackSnapshot {
     public let elapsedTime: TimeInterval
     public let isPlaying: Bool
     public let desiredPlaying: Bool
+    public let canGoNext: Bool
+    public let canGoPrevious: Bool
 
     public init(
         title: String?,
@@ -20,7 +22,9 @@ public struct FoliaPlaybackSnapshot {
         duration: TimeInterval,
         elapsedTime: TimeInterval,
         isPlaying: Bool,
-        desiredPlaying: Bool
+        desiredPlaying: Bool,
+        canGoNext: Bool = false,
+        canGoPrevious: Bool = false
     ) {
         self.title = title
         self.artist = artist
@@ -29,6 +33,8 @@ public struct FoliaPlaybackSnapshot {
         self.elapsedTime = elapsedTime
         self.isPlaying = isPlaying
         self.desiredPlaying = desiredPlaying
+        self.canGoNext = canGoNext
+        self.canGoPrevious = canGoPrevious
     }
 }
 
@@ -46,6 +52,7 @@ public protocol FoliaPlaybackTransport: AnyObject {
     func playbackSeekFromSystem(to seconds: Double)
     func playbackNextFromSystem()
     func playbackPreviousFromSystem()
+    func playbackMediaServicesWereReset()
     func playbackInterruptionBegan()
     func playbackInterruptionEnded(shouldResume: Bool)
     func playbackRouteChanged(outputWasDisconnected: Bool)
@@ -88,6 +95,24 @@ public final class FoliaPlaybackKeeper {
         installAudioSessionObservers()
         installApplicationLifecycleObservers()
         refreshNowPlayingInfo()
+    }
+
+    /// Remove remote command targets and notification observers before the host releases this keeper.
+    public func uninstall() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard isInstalled else { return }
+        for token in commandTokens { commandCenter.removeTarget(token) }
+        commandTokens.removeAll()
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+        observers.removeAll()
+        commandCenter.playCommand.isEnabled = false
+        commandCenter.pauseCommand.isEnabled = false
+        commandCenter.togglePlayPauseCommand.isEnabled = false
+        commandCenter.nextTrackCommand.isEnabled = false
+        commandCenter.previousTrackCommand.isEnabled = false
+        commandCenter.changePlaybackPositionCommand.isEnabled = false
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        isInstalled = false
     }
 
     /// Call when track metadata, timeline, or transport state changes.
@@ -211,8 +236,8 @@ public final class FoliaPlaybackKeeper {
     }
 
     private func updateCommandAvailability(_ snapshot: FoliaPlaybackSnapshot) {
-        commandCenter.nextTrackCommand.isEnabled = true
-        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.isEnabled = snapshot.canGoNext
+        commandCenter.previousTrackCommand.isEnabled = snapshot.canGoPrevious
         commandCenter.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
     }
 
@@ -361,7 +386,9 @@ public final class FoliaPlaybackKeeper {
             // auto-start: the transport's desired-playing intent is authoritative.
             do {
                 try audioSession.setCategory(.playback, mode: .default, options: [])
-                self?.isAudioSessionActive = false
+                try audioSession.setActive(true)
+                self?.isAudioSessionActive = true
+                self?.transport?.playbackMediaServicesWereReset()
                 self?.refreshNowPlayingInfo()
             } catch {
                 self?.onAudioSessionError?(error)
