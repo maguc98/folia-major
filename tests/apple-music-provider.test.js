@@ -13,7 +13,8 @@ function fixture(responses = {}) {
     api: { v3: { async music(path, query, options) {
       calls.push({ path, query, options });
       const key = path + ":" + (options?.fetchOptions?.method || "GET");
-      return responses[key] || responses[path] || { status: 200, data: { data: [] } };
+      return responses[key] || responses[path] ||
+        (path === "v1/me/storefront" ? { status: 200, data: { data: [{ id: "us" }] } } : { status: 200, data: { data: [] } });
     } } },
     async authorize() { this.isAuthorized = true; },
     async unauthorize() { this.isAuthorized = false; }
@@ -85,7 +86,7 @@ test("favorite writes use the correct method and provider status hashes user ide
   assert.equal(status.data.authenticated, true);
   assert.equal(status.data.user.nickname, "Listener");
   assert.equal(status.data.storefront, "us");
-  assert.equal(status.data.id.length, 64);
+  assert.equal(status.data.user.id.length, 64);
 });
 
 test("authorization and logout update MusicKit authorization without leaking tokens", async () => {
