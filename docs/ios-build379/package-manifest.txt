@@ -1,0 +1,28 @@
+Folia iOS 3.0.6 Build 379 — package manifest
+
+Input: iPad-Folia-3.0.6-build379-正式版.ipa
+SHA-256: d2702706ff6dede4533ea895b9fd42c0f718ab1f4d1cfddbcf3e21b1500218de
+
+Verified Info.plist:
+CFBundleDisplayName = Folia
+CFBundleIdentifier = top.izuna.foliaios
+CFBundleShortVersionString = 3.0.6
+CFBundleVersion = 379
+MinimumOSVersion = 15.0
+DTPlatformName = iphoneos
+DTPlatformVersion = 27.0
+DTXcode = 2700
+DTXcodeBuild = 27A266a
+UIDeviceFamily = [1, 2]
+
+Archive inventory:
+IPA archive entries: 9,715 (includes directories)
+Extracted files under public/: 8,429
+Files under public/assets/: 234
+Files under public/nodejs-project/node_modules/: 8,157
+Extracted public/ size: approximately 128 MiB
+Embedded frameworks: Capacitor.framework, Cordova.framework, NodeMobile.framework
+
+Sensitive material excluded from any future source import:
+public/nodejs-project/.auth-state/qq-device.json
+App signature directory: Payload/App.app/_CodeSignature/
