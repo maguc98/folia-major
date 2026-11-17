@@ -254,16 +254,20 @@ public final class FoliaPlaybackKeeper {
             case .ended:
                 let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
                 let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                let shouldResume = options.contains(.shouldResume)
-                if shouldResume {
+                let systemAllowsResume = options.contains(.shouldResume)
+                var sessionReactivated = false
+                if systemAllowsResume {
                     do {
                         try AVAudioSession.sharedInstance().setActive(true)
                         self.isAudioSessionActive = true
+                        sessionReactivated = true
                     } catch {
                         self.onAudioSessionError?(error)
                     }
                 }
-                self.transport?.playbackInterruptionEnded(shouldResume: shouldResume)
+                self.transport?.playbackInterruptionEnded(
+                    shouldResume: systemAllowsResume && sessionReactivated
+                )
             @unknown default:
                 break
             }
