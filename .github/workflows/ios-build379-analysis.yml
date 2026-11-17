@@ -21,13 +21,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build379-analysis
+  group: folia-ios-build379-analysis-macos15
   cancel-in-progress: false
 
 jobs:
   swift-syntax:
     name: Parse native Swift scaffolds
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 5
     steps:
       - name: Check out source
