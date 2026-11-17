@@ -132,3 +132,10 @@ The router remains uncompiled against the iOS SDK and has not been runtime-teste
 ## Native player runtime test plan
 
 The executable also exposes stored-property names for the native player's current URL/session/generation, track identity, playback intent, queue, item observers, pending seek, interruption recovery and auto-advance bookkeeping. A repeatable device test matrix based on the embedded self-test markers is documented in `docs/ios-build379/native-player-runtime-test-plan.md`. It separates test intentions visible in the binary from tests actually executed: no original-app self-test run or replacement-device test is claimed.
+
+
+## Deterministic player-state compatibility model
+
+A proposed state coordinator is now available at `compat/ios-bridge/player-state.js`. It keeps transport state, desired play intent, queue state, lifecycle state, and session/generation freshness as separate fields. It models immediate queue advancement and late-queue arrival after an ended item, and intentionally does not implement AVPlayer or automatic interruption resume.
+
+Eight deterministic tests are in `tests/player-state.test.js`. The workflow runs all Node test files with `node --test tests/*.test.js`. Local verification on Node.js 22 completed **17/17 tests** (9 bridge-adapter tests and 8 state-model tests). These are unit tests for the new compatibility modules; they do not exercise the original IPA or iOS frameworks.
