@@ -62,3 +62,15 @@ The repository has static maps and JS/Swift playback/provider scaffolds, but thi
 ## Relationship to the native provider bridge
 
 The Swift host can route `appleMusic*` requests into `apple-music-provider.js` once the host calls `installAppleMusicProviderDispatcher` (or the combined `installAppleMusicServices`) after the MusicKit script is configured. Non-Apple Music provider actions, including `fnmusic*`, continue to be delivered to the host's injected `onProviderRequest` callback. No Feiniu service has been invented or marked as available.
+
+
+## Swift host coordinator
+
+`compat/ios-bridge/ios/FoliaNodeRuntimeCoordinator.swift` defines the required NodeMobile driver contract and the startup/readiness lifecycle:
+
+- The integrating app implements `FoliaNodeRuntimeDriver` against the actual NodeMobile header/framework ABI and passes that adapter into `FoliaNativePlaybackHost`.
+- The coordinator creates the app-owned Documents/FoliaNode directory and supplies the exact `FOLIA_*` and `QQ_AUTH_STATE_PATH` environment keys read by `main.js`.
+- The driver starts project directory `nodejs-project`; the coordinator waits for the Kugou, QQ and proxy loopback listeners (3211/3212/3213 plus the selected offset) before reporting ready.
+- Failed readiness stops the driver and reports a bounded failure state. Explicit host shutdown stops the Node runtime.
+
+This does not provide the missing concrete NodeMobile driver. It is intentionally impossible to supply that driver accurately from the IPA alone because the embedded framework header/launcher ABI and a complete resource bundle are not present as editable source.
