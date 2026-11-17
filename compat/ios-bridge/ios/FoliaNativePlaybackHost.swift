@@ -114,6 +114,28 @@ public final class FoliaNativePlaybackHost {
         appleMusicPlaybackBridge.send(operation: operation, params: params, completion: completion)
     }
 
+    /// Install both Apple Music JavaScript services after the page has configured MusicKit.
+    /// The source strings are the UTF-8 contents of apple-music-playback.js and
+    /// apple-music-provider.js respectively.
+    public func installAppleMusicServices(
+        playbackSource: String,
+        providerSource: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicPlaybackBridge.install(dispatcherSource: playbackSource) { [weak self] playbackError in
+            guard let self else {
+                completion(NSError(domain: "FoliaNativePlaybackHost", code: 1))
+                return
+            }
+            guard playbackError == nil else {
+                completion(playbackError)
+                return
+            }
+            self.appleMusicProviderBridge.install(dispatcherSource: providerSource, completion: completion)
+        }
+    }
+
     /// Activate the playback audio session when the host begins playback ownership.
     public func activateAudioSession() throws {
         dispatchPrecondition(condition: .onQueue(.main))
