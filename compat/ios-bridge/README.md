@@ -7,12 +7,12 @@ This directory contains a small, dependency-free CommonJS adapter for projects t
 - `native-event-adapter.js`: maps the build-379 native `loaded`, `error`, `state`, and `ended` callbacks into the proposed deterministic player-state coordinator while leaving timeline/audio/auto-advanced events to their dedicated consumers.
 - `player-state.js`: deterministic compatibility model for desired play intent, actual transport state, queue progression, lifecycle, and session/generation freshness.
 - `ios/FoliaBridgeRouter.swift`: a WKWebView host-side router scaffold with weak message-handler proxies, main-frame/origin-policy hook, payload-size limits and native envelope validation. The host app still supplies the AVPlayer/MusicKit/Feiniu delegate implementation.
-- `../../tests/bridge-compat.test.js`: Node built-in tests (9 Node built-in test cases).
+- `../../tests/bridge-compat.test.js`: Node built-in tests (9 bridge tests plus 18 state/event-adapter tests).
 
 Run:
 
 ```bash
-node --test tests/bridge-compat.test.js
+node --test tests/*.test.js
 ```
 
 ## Integration boundary
