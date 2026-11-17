@@ -57,3 +57,8 @@ Qishui stores its pairing token, device identifier and account session under a L
 ## Current implementation status
 
 The repository has static maps and JS/Swift playback/provider scaffolds, but this checkout still does not have a native NodeMobile launcher, a complete imported `nodejs-project/` tree, the framework's build headers, or the original Xcode target configuration. Therefore the three Node services cannot truthfully be marked as started or integrated in an installable IPA. The binary IPA alone is not enough to rebuild that layer.
+
+
+## Relationship to the native provider bridge
+
+The Swift host can route `appleMusic*` requests into `apple-music-provider.js` once the host calls `installAppleMusicProviderDispatcher` (or the combined `installAppleMusicServices`) after the MusicKit script is configured. Non-Apple Music provider actions, including `fnmusic*`, continue to be delivered to the host's injected `onProviderRequest` callback. No Feiniu service has been invented or marked as available.
