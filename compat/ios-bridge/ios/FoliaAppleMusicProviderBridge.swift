@@ -71,20 +71,24 @@ public final class FoliaAppleMusicProviderBridge {
         }
 
         webView.callAsyncJavaScript(
-            "guard typeof window.__foliaAppleMusicProviderDispatch === 'function' else { throw new Error('provider-dispatcher-not-ready'); }; return await window.__foliaAppleMusicProviderDispatch(request);",
+            "if (typeof window.__foliaAppleMusicProviderDispatch !== 'function') { throw new Error('provider-dispatcher-not-ready'); } return await window.__foliaAppleMusicProviderDispatch(request);",
             arguments: ["request": request],
             in: nil,
             contentWorld: .page
         ) { result in
             switch result {
             case .success(let value):
-                guard let payload = value as? [String: Any] else {
-                    complete(["ok": false, "error": "invalid-provider-reply"])
-                    return
+                DispatchQueue.main.async {
+                    guard let payload = value as? [String: Any] else {
+                        complete(["ok": false, "error": "invalid-provider-reply"])
+                        return
+                    }
+                    complete(payload)
                 }
-                complete(payload)
             case .failure:
-                complete(["ok": false, "error": "provider-request-failed"])
+                DispatchQueue.main.async {
+                    complete(["ok": false, "error": "provider-request-failed"])
+                }
             }
         }
     }
