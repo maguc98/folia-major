@@ -122,6 +122,18 @@ class Build379BridgeFixtureTests(unittest.TestCase):
             with self.subTest(message=item):
                 validate_provider_reply(item)
 
+    def test_reject_invalid_player_volume(self) -> None:
+        with self.assertRaises(AssertionError):
+            validate_player_request({"cmd": "volume", "volume": 1.5, "generation": 1, "session": "fixture"})
+
+    def test_reject_unknown_provider_action(self) -> None:
+        with self.assertRaises(AssertionError):
+            validate_provider_request({"id": "fixture-id", "action": "arbitraryURL"})
+
+    def test_reject_malformed_provider_reply(self) -> None:
+        with self.assertRaises(AssertionError):
+            validate_provider_reply({"id": "fixture-id", "payload": {"ok": False}})
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
