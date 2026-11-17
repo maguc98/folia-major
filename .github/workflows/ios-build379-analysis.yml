@@ -37,6 +37,9 @@ jobs:
       - name: Parse WKWebView router, AVPlayer engine, and playback keeper
         run: |
           swiftc -frontend -parse $(find compat/ios-bridge/ios -maxdepth 1 -name '*.swift' -print)
+      - name: Build the iOS compatibility framework against the iOS SDK
+        run: |
+          xcodebuild -scheme FoliaIOSCompat -destination 'generic/platform=iOS' -sdk iphoneos CODE_SIGNING_ALLOWED=NO build
 
   compat-tests:
     name: Run bridge and runtime contract tests
