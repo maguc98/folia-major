@@ -212,3 +212,8 @@ Validation tests are in `tests/apple-music-provider.test.js` and `tests/apple-mu
 ## Verification scope after the latest compatibility work
 
 The Node suite now includes the bridge adapter, deterministic player state, native audio event validation, Apple Music playback dispatch and Apple Music catalog/account provider tests. It does not invoke AVFoundation, MediaToolbox, WebKit or NodeMobile. The Swift workflow step uses `swiftc -frontend -parse`, which checks syntax but does not type-check against the iOS SDK or build an app. Only a real host Xcode target and physical-device tests can close those gaps.
+
+
+## NodeMobile coordinator boundary
+
+`compat/ios-bridge/ios/FoliaNodeRuntimeCoordinator.swift` now provides a lifecycle contract for the extracted NodeMobile entry point, environment variables, and service readiness on loopback ports 3211/3212/3213. `FoliaNativePlaybackHost` accepts an optional `FoliaNodeRuntimeDriver` and coordinates start/stop. The actual driver must still be written against the real NodeMobile framework header/ABI, and the complete `nodejs-project` resource tree must be packaged into the app. The IPA's compiled `NodeRunner.start(projectDirectoryName:)` symbol is not enough to safely guess its call signature.
