@@ -35,3 +35,12 @@ Do not use this adapter as a drop-in replacement for the original Folia player b
 ### iOS system media controls
 
 See `ios/FoliaPlaybackKeeper.swift` and `../../docs/ios-build379/playback-keeper-host-scaffold.md` for the separate Now Playing and remote-command integration scaffold.
+
+
+### Apple Music account/catalog provider
+
+- `apple-music-provider.js`: account status, user authorization/logout, catalog search, song/album/artist detail and lists, library, playlists, timed lyrics, favorites, and adding songs to editable non-favorite library playlists.
+- `ios/FoliaAppleMusicProviderBridge.swift`: dispatches validated native provider requests into that page-side service and returns bounded result envelopes.
+- `FoliaNativePlaybackHost.installAppleMusicServices(playbackSource:providerSource:completion:)`: installs both the playback dispatcher and the provider dispatcher after MusicKit is configured.
+- `appleMusicClose` deliberately returns unsupported because the original close-sheet behavior is not recoverable from the extracted source. The provider's `appleMusicOpen` uses MusicKit `authorize()`, and logout uses `unauthorize()`.
+- Feiniu (`fnmusic*`) remains a separate injected handler; no account or API endpoint is invented.
