@@ -22,7 +22,7 @@ permissions:
 
 concurrency:
   group: folia-ios-build379-analysis
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   swift-syntax:
@@ -33,7 +33,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
         with:
-          ref: ios-build379-baseline
+          ref: ${{ github.sha }}
       - name: Parse WKWebView router, AVPlayer engine, and playback keeper
         run: |
           swiftc -frontend -parse $(find compat/ios-bridge/ios -maxdepth 1 -name '*.swift' -print)
