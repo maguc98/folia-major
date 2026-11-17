@@ -64,3 +64,22 @@ The branch and baseline documentation exist. The complete IPA and extracted web 
 3. Produce a clean source snapshot excluding authentication state, signing artifacts, and sensitive runtime data.
 4. Obtain or reconstruct the editable native project/build configuration before claiming reproducible IPA builds.
 5. Keep all modifications on this branch and record provenance, tests, and license notices.
+
+
+## Local payload verification and replacement
+
+A standalone verifier is available at `tools/ios-build379/verify_payload.py`. It checks the pinned SHA-256, ZIP CRCs, path traversal, symlink entries, known authentication/signing paths, required Web/NodeMobile entry files, and local references in `public/index.html`.
+
+Run it before import:
+
+```bash
+python3 tools/ios-build379/verify_payload.py /path/to/Folia-iOS-3.0.6-build379-public-sanitized-v2.zip
+```
+
+A guarded replacement helper is available at `scripts/replace-ios-web-payload.sh`. It replaces only the `public/` directory inside an already-extracted `.app` bundle after running the verifier:
+
+```bash
+scripts/replace-ios-web-payload.sh /path/to/Payload/App.app /path/to/Folia-iOS-3.0.6-build379-public-sanitized-v2.zip
+```
+
+**Important:** replacing `public/` invalidates the original iOS code signature. The resulting app must be re-signed with an authorized signing identity before installation. This helper does not rebuild the native executable, restore missing Swift source, or produce an IPA.
