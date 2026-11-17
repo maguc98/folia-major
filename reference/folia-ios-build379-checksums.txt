@@ -1,0 +1,13 @@
+Folia iOS 3.0.6 (build 379) reference checksums
+
+Original IPA
+File: iPad-Folia-3.0.6-build379-正式版.ipa
+Size: 60,939,068 bytes
+SHA-256: d2702706ff6dede4533ea895b9fd42c0f718ab1f4d1cfddbcf3e21b1500218de
+
+Sanitized public payload v2
+File: Folia-iOS-3.0.6-build379-public-sanitized-v2.zip
+Size: 41,823,396 bytes
+SHA-256: f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32
+
+The sanitized archive contains the public/ resource tree only. It is not the original IPA and cannot recreate the missing native Xcode/Swift project by itself.
