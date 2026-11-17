@@ -345,7 +345,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         event["session"] = session
         event["generation"] = generation
         router?.emitPlayerEvent(event)
-        onPlaybackStateChanged?()
+        if event["type"] as? String != "audio" { onPlaybackStateChanged?() }
     }
 
     // MARK: - Input normalization
