@@ -15,6 +15,7 @@ These identifiers support the existence of an audio-tap based analyzer with seve
 - Creates an `MTAudioProcessingTap` and installs it into `AVMutableAudioMixInputParameters` for the current audio track.
 - Supports common Float32, Int16, and Int32 sample formats, mono/stereo or multiple buffer layouts.
 - Splits audio using one-pole low-pass stages at 150, 400, 1,200, 3,500, and 12,000 Hz.
+- On iOS 27 and later, sets the special `AVAudioMixInputParametersTrackID.mixID` track identifier before item preparation so the tap receives the mixed output of the item's audio tracks. The OS excludes FairPlay-protected audio from this capability. On iOS 15–26, it falls back to the first available audio track.
 - Calculates RMS envelope estimates for the overall signal and adjacent frequency bands.
 - Applies a simple envelope smoothing step and bounds each output to 0...1.
 - Publishes at no more than 20 callbacks per second on the main queue.
@@ -51,3 +52,6 @@ The six numeric values are illustrative, not captured output. `compat/ios-bridge
 ## Host wiring note
 
 The audio analyzer publishes through the same `window.__foliaNativePlayerEvent` callback as the player transport. The optional JS guard/adapter is available at `compat/ios-bridge/audio-event-adapter.js`; it is a validation utility for test/consumer code, not a rewrite of the immutable production Folia bundle. A host that uses the exact bundled page should verify its audio-event handling before assuming the new event names update every visualizer renderer.
+
+
+Apple's 2026 HLS documentation describes the special track-mix ID as applying taps to mixed audio from multiple AVPlayerItem audio tracks, across encoding formats, except FairPlay-protected audio. The implementation applies this newer path only on iOS 27+ and retains the earlier per-track path for older deployment versions.
