@@ -44,14 +44,16 @@ public final class FoliaPlaybackSnapshotStore {
               let version = snapshot["schemaVersion"] as? Int, version == 1,
               let position = snapshot["position"] as? NSNumber,
               position.doubleValue.isFinite, position.doubleValue >= 0,
-              let session = snapshot["session"] as? String, !session.isEmpty,
+              let session = snapshot["session"] as? String, !session.isEmpty, session.count <= 256,
               let generation = snapshot["generation"] as? Int, generation >= 0,
+              generation <= 9_007_199_254_740_991,
               JSONSerialization.isValidJSONObject(snapshot) else {
             throw error("invalid-or-sensitive-snapshot")
         }
 
         for key in ["upcoming", "previous"] {
             if let tracks = snapshot[key] as? [[String: Any]] {
+                guard tracks.count <= 500 else { throw error("queue-too-large") }
                 for track in tracks {
                     guard let rawTrackURL = track["url"] as? String,
                           let trackURL = URL(string: rawTrackURL),
@@ -78,6 +80,7 @@ public final class FoliaPlaybackSnapshotStore {
     }
 
     public func load(maxAge: TimeInterval = 24 * 60 * 60) throws -> [String: Any]? {
+        guard maxAge.isFinite, maxAge >= 0 else { throw error("invalid-max-age") }
         guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
         let attributes = try fileManager.attributesOfItem(atPath: fileURL.path)
         let size = (attributes[.size] as? NSNumber)?.intValue ?? 0
@@ -97,8 +100,9 @@ public final class FoliaPlaybackSnapshotStore {
               let url = URL(string: rawURL), isPersistableURL(url),
               let position = object["position"] as? NSNumber,
               position.doubleValue.isFinite, position.doubleValue >= 0,
-              let session = object["session"] as? String, !session.isEmpty,
-              let generation = object["generation"] as? Int, generation >= 0 else {
+              let session = object["session"] as? String, !session.isEmpty, session.count <= 256,
+              let generation = object["generation"] as? Int, generation >= 0,
+              generation <= 9_007_199_254_740_991 else {
             try? clear()
             return nil
         }
