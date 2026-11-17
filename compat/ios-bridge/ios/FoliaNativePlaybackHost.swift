@@ -13,6 +13,8 @@ public final class FoliaNativePlaybackHost {
     public let appleMusicProviderBridge: FoliaAppleMusicProviderBridge
 
     private weak var webView: WKWebView?
+    private var appleMusicPlaybackSource: String?
+    private var appleMusicProviderSource: String?
 
     public var onAudioSessionError: ((Error) -> Void)?
     public var onPersistenceError: ((Error) -> Void)?
@@ -123,6 +125,8 @@ public final class FoliaNativePlaybackHost {
         completion: @escaping (Error?) -> Void
     ) {
         dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicPlaybackSource = playbackSource
+        appleMusicProviderSource = providerSource
         appleMusicPlaybackBridge.install(dispatcherSource: playbackSource) { [weak self] playbackError in
             guard let self else {
                 completion(NSError(domain: "FoliaNativePlaybackHost", code: 1))
@@ -148,6 +152,7 @@ public final class FoliaNativePlaybackHost {
     public func handleWebContentProcessTermination() -> Bool {
         dispatchPrecondition(condition: .onQueue(.main))
         guard let webView else { return false }
+        appleMusicProviderBridge.invalidate()
         return recovery.handleWebContentProcessTermination(of: webView)
     }
 
@@ -165,6 +170,31 @@ public final class FoliaNativePlaybackHost {
             generation: generation,
             resumePlayback: resumePlayback
         )
+    }
+
+    /// Re-install MusicKit globals after the WebView reloads, then restore playback
+    /// through the new page session/generation.
+    public func restoreAfterWebContentReadyAndReinstallServices(
+        session: String,
+        generation: Int,
+        resumePlayback: Bool,
+        completion: @escaping (Bool, Error?) -> Void
+    ) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard let playbackSource = appleMusicPlaybackSource,
+              let providerSource = appleMusicProviderSource else {
+            completion(restoreAfterWebContentReady(session: session, generation: generation, resumePlayback: resumePlayback), nil)
+            return
+        }
+        installAppleMusicServices(playbackSource: playbackSource, providerSource: providerSource) { [weak self] error in
+            guard let self else {
+                completion(false, NSError(domain: "FoliaNativePlaybackHost", code: 2))
+                return
+            }
+            guard error == nil else { completion(false, error); return }
+            let restored = self.restoreAfterWebContentReady(session: session, generation: generation, resumePlayback: resumePlayback)
+            completion(restored, nil)
+        }
     }
 
     public func savePlaybackSnapshot() throws {
@@ -186,6 +216,8 @@ public final class FoliaNativePlaybackHost {
         engine.onPlaybackStateChanged = nil
         engine.onProviderRequest = nil
         externalProviderRequestHandler = nil
+        appleMusicPlaybackSource = nil
+        appleMusicProviderSource = nil
         keeper.onApplicationLifecycleChanged = nil
         keeper.onAudioSessionError = nil
         router.uninstall()
