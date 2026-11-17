@@ -34,6 +34,8 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     /// Optional host callback, invoked on the main queue whenever a native player event is emitted.
     /// A host can use it to keep Now Playing metadata synchronized without a second timer.
     public var onPlaybackStateChanged: (() -> Void)?
+    /// Host-provided Apple Music / Feiniu provider bridge.
+    public var onProviderRequest: (([String: Any], @escaping ([String: Any]) -> Void) -> Void)?
 
     public init(isAllowedMediaURL: @escaping (URL) -> Bool = { url in
         guard let scheme = url.scheme?.lowercased() else { return false }
@@ -118,8 +120,26 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         didReceiveProviderRequest request: [String: Any],
         reply: @escaping ([String: Any]) -> Void
     ) {
-        // Provider implementations are intentionally not fabricated here.
-        reply(["ok": false, "error": "provider-service-not-installed"])
+        guard let onProviderRequest else {
+            reply(["ok": false, "error": "provider-service-not-installed"])
+            return
+        }
+        onProviderRequest(request) { payload in
+            guard let ok = payload["ok"] as? Bool else {
+                reply(["ok": false, "error": "invalid-provider-reply"])
+                return
+            }
+            if ok {
+                guard payload["data"] != nil else {
+                    reply(["ok": false, "error": "invalid-provider-reply"])
+                    return
+                }
+            } else if !(payload["error"] is String) {
+                reply(["ok": false, "error": "invalid-provider-reply"])
+                return
+            }
+            reply(payload)
+        }
     }
 
     // MARK: - Session and command handling
