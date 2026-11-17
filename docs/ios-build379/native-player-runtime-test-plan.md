@@ -64,12 +64,16 @@ A string `selftest: PASS session=` is present. The executable also contains `sel
 | NP-04 | Play A without B; send B after A ends | event timestamps, queue update, playback start | Player waits and starts B once it becomes available |
 | NP-05 | Queue an item whose identity does not match the expected current item | current key, queue keys, logs | Mismatched queue is rejected or reconciled without skipping the wrong item |
 | NP-06 | Load an invalid/unplayable item with and without a next item | error event, intent, queue | No false playing state; waits or advances only according to verified policy |
-| NP-07 | Background during active playback, then foreground | position continuity, audio route, background task | Playback remains continuous where platform policy permits; foreground does not restart an already-playing item |
+| NP-07 | Background during active playback, then foreground | position continuity, audio route, app lifecycle callback, background mode | Playback remains continuous where platform policy permits; foreground does not restart an already-playing item; host receives background/foreground callbacks |
 | NP-08 | Explicitly pause, background, foreground | desired-playing and actual rate | Foreground recovery does not override explicit user pause |
-| NP-09 | Trigger an audio interruption and end it | interruption flags, resume attempts, rate | Resume behavior follows captured original policy and never overrides a later user pause |
+| NP-09 | Trigger an audio interruption and end it with and without the iOS `shouldResume` option | interruption flags, audio-session activation result, desired-playing, rate | Resume occurs only when playback was intended, iOS supplies `shouldResume`, and audio-session reactivation succeeds; a user pause during interruption is never overridden |
 | NP-10 | Reload WebView at same URL while playing | URL, position, generation, session, queue | Restore is bounded and does not duplicate playback or accept stale commands |
 | NP-11 | Reload WebView at a different URL | old/new session, item, callbacks | Old session is invalidated; no old queue callback mutates new playback |
 | NP-12 | Use lock-screen / headset next, previous, play, pause | remote command result, now-playing metadata | Remote commands reach the current native item and metadata remains consistent |
+| NP-16 | Disconnect wired/Bluetooth headphones during playback | route-change reason, desired-playing, AVPlayer rate, output route | Playback pauses and clears desired intent; audio must not unexpectedly move to the speaker |
+| NP-17 | Trigger interruption, press pause while interrupted, then end interruption | desired-playing, interruption flag, resume option, rate | Explicit pause wins; no automatic resume occurs |
+| NP-18 | Trigger interruption while already paused, then end it | desired-playing, interruption flag, rate | No spurious playback start occurs |
+| NP-19 | Enter background and foreground repeatedly while paused and while playing | lifecycle callbacks, playback position, intent, rate | Lifecycle notifications do not mutate user intent or create duplicate playback |
 | NP-13 | Seek to 0, duration boundary, negative, NaN, Infinity | accepted/rejected payload and actual position | Invalid numeric inputs are rejected; valid seeks are bounded by player duration policy |
 | NP-14 | Change volume and mute independently | volume, mute, audio output | Volume 0–1 and mute remain independent and consistent |
 | NP-15 | Force WebContent process termination/reload | snapshot, restored item, position, intent | Recovery is deterministic and does not resurrect a stale session |
@@ -96,12 +100,13 @@ Do not include Apple Music cookies, provider tokens, account identifiers, or sig
 1. Run NP-01 through NP-06 first. These establish item ownership and queue correctness.
 2. Run NP-07 through NP-11. These establish lifecycle recovery and stale-session isolation.
 3. Run NP-12 through NP-14. These establish system controls and numeric/media controls.
-4. Run NP-15 last, because process termination may require reinstall/relaunch and can obscure earlier state.
+4. Run NP-16 through NP-19 to verify the new route/interruption/lifecycle policy.
+5. Run NP-15 last, because process termination may require reinstall/relaunch and can obscure earlier state.
 
 ## 6. Current status
 
 - Static analysis of the IPA: complete for the symbol/string evidence summarized here.
 - Test plan: documented.
 - Original app self-test execution: not observed.
-- Replacement host implementation: not complete.
+- Replacement host implementation: partial scaffold; interruption/route/background callbacks are now present but not device-verified.
 - Xcode build and device execution: not performed.
