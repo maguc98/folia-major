@@ -140,3 +140,46 @@ test("late ended event from replaced URL cannot advance the new item", () => {
   state = send(state, "ended", { url: "https://media.example/a.m4a" });
   assert.deepEqual(state, before);
 });
+
+
+const { mapNativePlayerEvent, applyNativePlayerEvent } = require("../compat/ios-bridge/native-event-adapter");
+
+test("native state callback updates transport without erasing desired play intent", () => {
+  let state = send(createPlayerState(), "load", { track: track("a"), autoplay: true });
+  state = applyNativePlayerEvent(state, { type: "state", session: "s1", generation: 1, playing: false });
+  assert.equal(state.transport, "paused");
+  assert.equal(state.desiredPlaying, true);
+});
+
+test("native loaded and error callbacks map to ready and failed states", () => {
+  let state = send(createPlayerState(), "load", { track: track("a"), autoplay: true });
+  state = applyNativePlayerEvent(state, { type: "loaded", session: "s1", generation: 1 });
+  assert.equal(state.transport, "playing");
+  state = applyNativePlayerEvent(state, { type: "error", session: "s1", generation: 1, message: "decode" });
+  assert.equal(state.transport, "failed");
+  assert.equal(state.lastError, "decode");
+});
+
+test("native event adapter rejects stale generation and malformed envelopes", () => {
+  let state = send(createPlayerState(), "load", { track: track("a"), autoplay: true });
+  const before = state;
+  state = applyNativePlayerEvent(state, { type: "state", session: "s1", generation: 0, playing: false });
+  assert.deepEqual(state, before);
+  assert.equal(mapNativePlayerEvent({ type: "state", session: "s1", generation: 1, playing: "false" }), null);
+  assert.equal(mapNativePlayerEvent({ type: "ended", session: "", generation: 1 }), null);
+});
+
+test("native ended callback uses URL identity and cannot advance twice", () => {
+  let state = send(createPlayerState(), "load", { track: track("a"), autoplay: true, upcoming: [track("b")] });
+  state = applyNativePlayerEvent(state, { type: "ended", session: "s1", generation: 1, url: "https://media.example/a.m4a" });
+  assert.equal(state.current.trackKey, "b");
+  const once = state;
+  state = applyNativePlayerEvent(state, { type: "ended", session: "s1", generation: 1, url: "https://media.example/a.m4a" });
+  assert.deepEqual(state, once);
+});
+
+test("non-state native callbacks are left to timeline and visualizer consumers", () => {
+  assert.equal(mapNativePlayerEvent({ type: "time", session: "s1", generation: 1, position: 3 }), null);
+  assert.equal(mapNativePlayerEvent({ type: "audio", session: "s1", generation: 1, bass: 10 }), null);
+  assert.equal(mapNativePlayerEvent({ type: "auto-advanced", session: "s1", generation: 1, trackKey: "b" }), null);
+});
