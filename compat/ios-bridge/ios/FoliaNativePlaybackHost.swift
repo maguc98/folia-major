@@ -3,6 +3,7 @@ import WebKit
 
 /// Strong owner that wires the separately authored native playback scaffolds.
 /// The host application must retain this object for the lifetime of its WKWebView.
+@MainActor
 public final class FoliaNativePlaybackHost {
     public let engine: FoliaAVPlayerEngine
     public let router: FoliaBridgeRouter
@@ -11,6 +12,7 @@ public final class FoliaNativePlaybackHost {
     public let snapshotStore: FoliaPlaybackSnapshotStore
     public let appleMusicPlaybackBridge: FoliaAppleMusicPlaybackBridge
     public let appleMusicProviderBridge: FoliaAppleMusicProviderBridge
+    public let nodeRuntime: FoliaNodeRuntimeCoordinator?
 
     private weak var webView: WKWebView?
     private var appleMusicPlaybackSource: String?
@@ -31,7 +33,8 @@ public final class FoliaNativePlaybackHost {
             return true
         },
         snapshotStore: FoliaPlaybackSnapshotStore = FoliaPlaybackSnapshotStore(),
-        onProviderRequest: (([String: Any], @escaping ([String: Any]) -> Void) -> Void)? = nil
+        onProviderRequest: (([String: Any], @escaping ([String: Any]) -> Void) -> Void)? = nil,
+        nodeRuntimeDriver: FoliaNodeRuntimeDriver? = nil
     ) {
         dispatchPrecondition(condition: .onQueue(.main))
         self.webView = webView
@@ -39,6 +42,7 @@ public final class FoliaNativePlaybackHost {
         self.appleMusicPlaybackBridge = FoliaAppleMusicPlaybackBridge(webView: webView)
         self.appleMusicProviderBridge = FoliaAppleMusicProviderBridge(webView: webView)
         self.externalProviderRequestHandler = onProviderRequest
+        self.nodeRuntime = nodeRuntimeDriver.map { FoliaNodeRuntimeCoordinator(driver: $0) }
 
         let engine = FoliaAVPlayerEngine(isAllowedMediaURL: isAllowedMediaURL)
         let router = FoliaBridgeRouter(
@@ -142,6 +146,23 @@ public final class FoliaNativePlaybackHost {
         }
     }
 
+    /// Starts the extracted Node services through the host's NodeMobile driver.
+    /// The driver must be implemented against the actual framework header/ABI.
+    public func startNodeRuntime() async throws {
+        guard let nodeRuntime else {
+            throw NSError(
+                domain: "FoliaNativePlaybackHost",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "nodemobile-driver-not-installed"]
+            )
+        }
+        try await nodeRuntime.start()
+    }
+
+    public func stopNodeRuntime() {
+        nodeRuntime?.stop()
+    }
+
     /// Activate the playback audio session when the host begins playback ownership.
     public func activateAudioSession() throws {
         dispatchPrecondition(condition: .onQueue(.main))
@@ -223,6 +244,7 @@ public final class FoliaNativePlaybackHost {
         keeper.onApplicationLifecycleChanged = nil
         keeper.onAudioSessionError = nil
         router.uninstall()
+        nodeRuntime?.stop()
         engine.shutdownTransport()
         try? keeper.deactivatePlaybackAudioSession()
         keeper.uninstall()
