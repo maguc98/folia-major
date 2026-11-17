@@ -176,7 +176,17 @@ A future wrapper must preserve each route independently. A generic replacement W
 - Before implementing a replacement wrapper, obtain the author's native project or instrument the original app on a test device to capture representative message/reply pairs.
 - Do not alter the production bridge protocol based only on guessed native behavior. First build a protocol harness that can replay captured fixtures and compare event ordering.
 
-## 7. Source files examined
+## 7. Synthetic contract fixtures and tests
+
+The repository includes a JSON Schema at `schemas/native-bridge-build379.schema.json`, synthetic message fixtures at `tests/fixtures/native-bridge-build379.json`, and dependency-free structural tests at `tests/test_native_bridge_build379.py`. These fixtures are intentionally synthetic and contain no real account/session data. They test the observed web-side envelope shape only; they are not packet captures from the original app and do not verify native execution.
+
+Run the structural checks with:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
+```
+
+## 8. Source files examined
 
 - `public/assets/main-D3qKLyAO.js`
 - `public/assets/bootstrap-FH45rHF5.js`
