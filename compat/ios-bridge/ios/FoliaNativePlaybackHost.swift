@@ -97,6 +97,7 @@ public final class FoliaNativePlaybackHost {
     /// Supply the UTF-8 source from compat/ios-bridge/apple-music-playback.js.
     public func installAppleMusicPlaybackDispatcher(source: String, completion: @escaping (Error?) -> Void) {
         dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicPlaybackSource = source
         appleMusicPlaybackBridge.install(dispatcherSource: source, completion: completion)
     }
 
@@ -104,6 +105,7 @@ public final class FoliaNativePlaybackHost {
     /// Supply UTF-8 source from compat/ios-bridge/apple-music-provider.js.
     public func installAppleMusicProviderDispatcher(source: String, completion: @escaping (Error?) -> Void) {
         dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicProviderSource = source
         appleMusicProviderBridge.install(dispatcherSource: source, completion: completion)
     }
 
