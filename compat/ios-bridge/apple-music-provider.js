@@ -100,6 +100,7 @@ function createAppleMusicProvider({ windowRef, fetchImpl } = {}) {
   };
 
   async function status(mk, call) {
+    if (mk.isAuthorized !== true) return { ok: true, data: { authenticated: false } };
     const account = await call("v1/me/storefront");
     const store = account?.data?.data?.[0]?.id;
     if (typeof store !== "string" || !/^[a-z]{2}$/.test(store)) {
@@ -132,9 +133,12 @@ function createAppleMusicProvider({ windowRef, fetchImpl } = {}) {
       } catch {}
     }
     return { ok: true, data: {
-      id,
-      nickname: typeof item?.attributes?.name === "string" ? item.attributes.name.slice(0, 256) : "Apple Music",
-      avatarUrl,
+      authenticated: true,
+      user: {
+        id,
+        nickname: typeof item?.attributes?.name === "string" ? item.attributes.name.slice(0, 256) : "Apple Music",
+        ...(avatarUrl ? { avatarUrl } : {})
+      },
       storefront: store
     } };
   }
