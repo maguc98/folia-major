@@ -22,13 +22,9 @@ public struct FoliaAudioBands {
     }
 }
 
-/// AVPlayer audio-mix tap. It performs lightweight one-pole low-pass splits at
-/// the same five cutoff labels visible in the supplied build-379 symbol table
-/// (150, 400, 1200, 3500, 12000 Hz). Per-band energies are computed from the
-/// differences between adjacent low-pass outputs.
-///
-/// The exact original DSP, sample scaling and smoothing constants are not
-/// recoverable from symbol names alone. Host code must test values on-device.
+/// AVPlayer audio-mix tap. The cutoff labels match fields found in the build-379
+/// executable (150, 400, 1200, 3500, 12000 Hz). The filter and normalization
+/// below are a replacement model, not recovered original DSP.
 public final class NativeAudioTapAnalyzer {
     private final class TapCookie {
         weak var analyzer: NativeAudioTapAnalyzer?
@@ -40,11 +36,18 @@ public final class NativeAudioTapAnalyzer {
         case int16
         case int32
         case unsupported
+
+        var bytesPerSample: Int {
+            switch self {
+            case .float32, .int32: return 4
+            case .int16: return 2
+            case .unsupported: return 0
+            }
+        }
     }
 
     private let lock = NSLock()
     private var sampleKind: SampleKind = .unsupported
-    private var sampleRate: Double = 44_100
     private var isNonInterleaved = false
     private var alpha150: Float = 0
     private var alpha400: Float = 0
@@ -57,7 +60,12 @@ public final class NativeAudioTapAnalyzer {
     private var lp3500: Float = 0
     private var lp12000: Float = 0
     private var lastPublishTime: TimeInterval = 0
-    private var smoothed: [Float] = Array(repeating: 0, count: 6)
+    private var smoothedPower: Float = 0
+    private var smoothedBass: Float = 0
+    private var smoothedLowMid: Float = 0
+    private var smoothedMid: Float = 0
+    private var smoothedVocal: Float = 0
+    private var smoothedTreble: Float = 0
 
     /// Called on the main queue, throttled to at most 20 updates per second.
     public var onBands: ((FoliaAudioBands) -> Void)?
@@ -66,9 +74,10 @@ public final class NativeAudioTapAnalyzer {
 
     public func makeAudioMix(for track: AVAssetTrack) throws -> AVAudioMix {
         reset()
+        let retainedCookie = Unmanaged.passRetained(TapCookie(analyzer: self))
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
-            clientInfo: Unmanaged.passRetained(TapCookie(analyzer: self)).toOpaque(),
+            clientInfo: retainedCookie.toOpaque(),
             init: { _, clientInfo, tapStorageOut in
                 tapStorageOut.pointee = clientInfo
             },
@@ -101,6 +110,8 @@ public final class NativeAudioTapAnalyzer {
             &createdTap
         )
         guard status == noErr, let createdTap else {
+            // The tap never accepted ownership of clientInfo.
+            retainedCookie.release()
             throw NSError(
                 domain: "FoliaAudioTap",
                 code: Int(status),
@@ -118,66 +129,103 @@ public final class NativeAudioTapAnalyzer {
     /// Reset band history when its AVPlayerItem is replaced or the tap is unprepared.
     public func reset() {
         lock.lock()
+        resetLocked()
+        lock.unlock()
+    }
+
+    private func resetLocked() {
         lp150 = 0
         lp400 = 0
         lp1200 = 0
         lp3500 = 0
         lp12000 = 0
-        smoothed = Array(repeating: 0, count: 6)
+        smoothedPower = 0
+        smoothedBass = 0
+        smoothedLowMid = 0
+        smoothedMid = 0
+        smoothedVocal = 0
+        smoothedTreble = 0
         lastPublishTime = 0
-        lock.unlock()
     }
 
     private func prepare(format: AudioStreamBasicDescription) {
         lock.lock()
         defer { lock.unlock() }
-        sampleRate = format.mSampleRate.isFinite && format.mSampleRate > 0
+
+        let rate = format.mSampleRate.isFinite && format.mSampleRate > 0
             ? format.mSampleRate : 44_100
         let flags = format.mFormatFlags
         isNonInterleaved = (flags & kAudioFormatFlagIsNonInterleaved) != 0
         if (flags & kAudioFormatFlagIsFloat) != 0 && format.mBitsPerChannel == 32 {
             sampleKind = .float32
-        } else if format.mBitsPerChannel == 16 {
+        } else if (flags & kAudioFormatFlagIsSignedInteger) != 0 && format.mBitsPerChannel == 16 {
             sampleKind = .int16
-        } else if format.mBitsPerChannel == 32 {
+        } else if (flags & kAudioFormatFlagIsSignedInteger) != 0 && format.mBitsPerChannel == 32 {
             sampleKind = .int32
         } else {
             sampleKind = .unsupported
         }
 
         func coefficient(_ cutoff: Double) -> Float {
-            let safeCutoff = min(cutoff, sampleRate * 0.45)
-            return Float(1.0 - exp(-2.0 * Double.pi * safeCutoff / sampleRate))
+            let safeCutoff = min(cutoff, rate * 0.45)
+            return Float(1.0 - exp(-2.0 * Double.pi * safeCutoff / rate))
         }
         alpha150 = coefficient(150)
         alpha400 = coefficient(400)
         alpha1200 = coefficient(1_200)
         alpha3500 = coefficient(3_500)
         alpha12000 = coefficient(12_000)
+        resetLocked()
     }
 
+    /// Keep this real-time callback allocation-light: no per-frame arrays,
+    /// no logging, and no UIKit/WebKit calls from the audio processing thread.
     private func process(_ listPointer: UnsafeMutablePointer<AudioBufferList>, frameCount: Int) {
         guard frameCount > 0 else { return }
-        var samples = [Float]()
-        samples.reserveCapacity(min(frameCount, 8_192))
+        let buffers = UnsafeMutableAudioBufferListPointer(listPointer)
 
         lock.lock()
         let kind = sampleKind
         let nonInterleaved = isNonInterleaved
-        lock.unlock()
-        guard kind != .unsupported else { return }
+        let bytesPerSample = kind.bytesPerSample
+        guard bytesPerSample > 0 else {
+            lock.unlock()
+            return
+        }
 
-        let buffers = UnsafeMutableAudioBufferListPointer(listPointer)
-        let framesToRead = min(frameCount, 8_192)
+        var framesToRead = min(frameCount, 8_192)
+        for buffer in buffers {
+            guard buffer.mData != nil else { continue }
+            let channels = max(1, Int(buffer.mNumberChannels))
+            let availableSamples = Int(buffer.mDataByteSize) / bytesPerSample
+            let availableFrames = nonInterleaved ? availableSamples : availableSamples / channels
+            framesToRead = min(framesToRead, availableFrames)
+        }
+        guard framesToRead > 0 else {
+            lock.unlock()
+            return
+        }
+
+        var sumPower: Float = 0
+        var sumBass: Float = 0
+        var sumLowMid: Float = 0
+        var sumMid: Float = 0
+        var sumVocal: Float = 0
+        var sumTreble: Float = 0
+        var samplesProcessed = 0
+
         for frame in 0..<framesToRead {
-            var sum: Float = 0
+            var channelSum: Float = 0
             var channelCount = 0
+
             for buffer in buffers {
                 guard let raw = buffer.mData else { continue }
                 let channels = max(1, Int(buffer.mNumberChannels))
-                let first = nonInterleaved ? frame : frame * channels
-                for channel in 0..<(nonInterleaved ? 1 : channels) {
-                    let index = first + channel
+                let firstIndex = nonInterleaved ? frame : frame * channels
+                let channelLimit = nonInterleaved ? 1 : channels
+
+                for channel in 0..<channelLimit {
+                    let index = firstIndex + channel
                     let value: Float
                     switch kind {
                     case .float32:
@@ -190,71 +238,63 @@ public final class NativeAudioTapAnalyzer {
                         value = 0
                     }
                     if value.isFinite {
-                        sum += max(-1, min(1, value))
+                        channelSum += max(-1, min(1, value))
                         channelCount += 1
                     }
                 }
             }
-            if channelCount > 0 { samples.append(sum / Float(channelCount)) }
-        }
 
-        guard !samples.isEmpty else { return }
-        lock.lock()
-        var sumPower: Float = 0
-        var sumBass: Float = 0
-        var sumLowMid: Float = 0
-        var sumMid: Float = 0
-        var sumVocal: Float = 0
-        var sumTreble: Float = 0
-
-        for sample in samples {
-            let x = sample
+            guard channelCount > 0 else { continue }
+            let x = channelSum / Float(channelCount)
             lp150 += alpha150 * (x - lp150)
             lp400 += alpha400 * (x - lp400)
             lp1200 += alpha1200 * (x - lp1200)
             lp3500 += alpha3500 * (x - lp3500)
             lp12000 += alpha12000 * (x - lp12000)
 
-            let bands = [
-                lp150,
-                lp400 - lp150,
-                lp1200 - lp400,
-                lp3500 - lp1200,
-                lp12000 - lp3500
-            ]
+            let bass = lp150
+            let lowMid = lp400 - lp150
+            let mid = lp1200 - lp400
+            let vocal = lp3500 - lp1200
+            let treble = lp12000 - lp3500
+
             sumPower += x * x
-            sumBass += bands[0] * bands[0]
-            sumLowMid += bands[1] * bands[1]
-            sumMid += bands[2] * bands[2]
-            sumVocal += bands[3] * bands[3]
-            sumTreble += bands[4] * bands[4]
+            sumBass += bass * bass
+            sumLowMid += lowMid * lowMid
+            sumMid += mid * mid
+            sumVocal += vocal * vocal
+            sumTreble += treble * treble
+            samplesProcessed += 1
         }
 
-        let count = Float(samples.count)
-        let raw: [Float] = [
-            sqrt(sumPower / count),
-            sqrt(sumBass / count),
-            sqrt(sumLowMid / count),
-            sqrt(sumMid / count),
-            sqrt(sumVocal / count),
-            sqrt(sumTreble / count)
-        ]
-        // Smooth the output envelope without changing the underlying audio buffers.
-        let envelopeAlpha: Float = 0.28
-        for index in raw.indices {
-            smoothed[index] += envelopeAlpha * (raw[index] - smoothed[index])
+        guard samplesProcessed > 0 else {
+            lock.unlock()
+            return
         }
+
+        let count = Float(samplesProcessed)
+        let envelopeAlpha: Float = 0.28
+        smoothedPower += envelopeAlpha * (sqrt(sumPower / count) - smoothedPower)
+        smoothedBass += envelopeAlpha * (sqrt(sumBass / count) - smoothedBass)
+        smoothedLowMid += envelopeAlpha * (sqrt(sumLowMid / count) - smoothedLowMid)
+        smoothedMid += envelopeAlpha * (sqrt(sumMid / count) - smoothedMid)
+        smoothedVocal += envelopeAlpha * (sqrt(sumVocal / count) - smoothedVocal)
+        smoothedTreble += envelopeAlpha * (sqrt(sumTreble / count) - smoothedTreble)
+
         let now = ProcessInfo.processInfo.systemUptime
         let shouldPublish = now - lastPublishTime >= 0.05
         if shouldPublish { lastPublishTime = now }
-        let values = smoothed.map { Double(max(0, min(1, $0))) }
+        let result = FoliaAudioBands(
+            power: Double(max(0, min(1, smoothedPower))),
+            bass: Double(max(0, min(1, smoothedBass))),
+            lowMid: Double(max(0, min(1, smoothedLowMid))),
+            mid: Double(max(0, min(1, smoothedMid))),
+            vocal: Double(max(0, min(1, smoothedVocal))),
+            treble: Double(max(0, min(1, smoothedTreble)))
+        )
         lock.unlock()
 
         guard shouldPublish else { return }
-        let result = FoliaAudioBands(
-            power: values[0], bass: values[1], lowMid: values[2],
-            mid: values[3], vocal: values[4], treble: values[5]
-        )
         DispatchQueue.main.async { [weak self] in
             self?.onBands?(result)
         }
