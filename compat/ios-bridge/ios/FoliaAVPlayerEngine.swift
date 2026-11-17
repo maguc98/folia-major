@@ -26,14 +26,17 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var volume: Float = 1
     private var pendingSeek: Double?
     private var endedForURL: String?
-    private var isInstalled = false
-
-    public init(router: FoliaBridgeRouter) {
-        self.router = router
+    public override init() {
         super.init()
         player.automaticallyWaitsToMinimizeStalling = true
         player.volume = volume
         player.isMuted = muted
+    }
+
+    /// Call after constructing FoliaBridgeRouter(delegate: engine).
+    /// The host must retain both the engine and router for the lifetime of the WebView.
+    public func attach(to router: FoliaBridgeRouter) {
+        self.router = router
     }
 
     deinit {
@@ -54,7 +57,11 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             load(command)
         case "play":
             desiredPlaying = true
-            player.play()
+            if endedForURL == currentURL?.absoluteString, !upcoming.isEmpty {
+                advanceIfPossible(reason: "user-resume-after-end")
+            } else {
+                player.play()
+            }
             emitState()
         case "pause":
             // Explicit user intent is distinct from programmatic transport pauses.
@@ -148,10 +155,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         guard requestedKey == nil || actualKey == nil || requestedKey == actualKey else { return }
         upcoming = normalizedQueue(command["upcoming"])
         previous = normalizedQueue(command["previous"])
-        if player.currentItem?.status == .readyToPlay,
-           player.currentTime().seconds.isFinite,
-           endedForURL == currentURL?.absoluteString,
-           desiredPlaying {
+        if endedForURL == currentURL?.absoluteString, desiredPlaying {
             advanceIfPossible(reason: "late-queue")
         }
     }
@@ -232,6 +236,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     }
 
     private func advanceIfPossible(reason: String) {
+        _ = reason // Retained for host-side diagnostics/integration logging.
         guard desiredPlaying, !upcoming.isEmpty else {
             emitState()
             return
