@@ -69,8 +69,11 @@ The Swift host can route `appleMusic*` requests into `apple-music-provider.js` o
 `compat/ios-bridge/ios/FoliaNodeRuntimeCoordinator.swift` defines the required NodeMobile driver contract and the startup/readiness lifecycle:
 
 - The integrating app implements `FoliaNodeRuntimeDriver` against the actual NodeMobile header/framework ABI and passes that adapter into `FoliaNativePlaybackHost`.
-- The coordinator creates the app-owned Documents/FoliaNode directory and supplies the exact `FOLIA_*` and `QQ_AUTH_STATE_PATH` environment keys read by `main.js`.
+- The coordinator creates the app-owned Application Support/FoliaNode directory and supplies the exact `FOLIA_*` and `QQ_AUTH_STATE_PATH` environment keys read by `main.js`.
 - The driver starts project directory `nodejs-project`; the coordinator waits for the Kugou, QQ and proxy loopback listeners (3211/3212/3213 plus the selected offset) before reporting ready.
 - Failed readiness stops the driver and reports a bounded failure state. Explicit host shutdown stops the Node runtime.
 
 This does not provide the missing concrete NodeMobile driver. It is intentionally impossible to supply that driver accurately from the IPA alone because the embedded framework header/launcher ABI and a complete resource bundle are not present as editable source.
+
+
+The latest coordinator stores logs and QQ auth-state files in the app's private Application Support directory (file-protected and excluded from backup), not the user-visible Documents directory.
