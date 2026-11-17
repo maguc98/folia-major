@@ -29,6 +29,12 @@ public final class FoliaAppleMusicProviderBridge {
         }
     }
 
+    /// Call when navigation or WebContent termination clears the page JavaScript globals.
+    public func invalidate() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        installed = false
+    }
+
     /// Implements FoliaBridgeRouter's provider delegate callback contract.
     /// The router independently validates the request and guards duplicate replies.
     public func handle(
