@@ -16,7 +16,7 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 2. Construct `FoliaBridgeRouter(delegate: engine, ...)` and call `engine.attach(to: router)`.
 3. Construct `FoliaPlaybackKeeper(transport: engine)` and call `keeper.install()` on the main queue.
 4. Install the router on the WebView.
-5. Call `keeper.refreshNowPlayingInfo()` after metadata/timeline changes. The engine does not own the keeper, so host wiring must arrange refreshes (for example, from the host's playback-state observer/tick).
+5. Set `engine.onPlaybackStateChanged = { [weak keeper] in keeper?.refreshNowPlayingInfo() }` after creating the keeper. This callback runs on the main queue whenever the engine emits state/time/track events, avoiding a separate timer. Clear the callback when tearing down the host.
 6. Call `activatePlaybackAudioSession()` when playback ownership begins. Call `deactivatePlaybackAudioSession()` only when playback is genuinely stopped and the host relinquishes the audio session.
 
 ## Implemented
