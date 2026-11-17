@@ -10,11 +10,13 @@ public final class FoliaNativePlaybackHost {
     public let recovery: FoliaWebContentRecoveryCoordinator
     public let snapshotStore: FoliaPlaybackSnapshotStore
     public let appleMusicPlaybackBridge: FoliaAppleMusicPlaybackBridge
+    public let appleMusicProviderBridge: FoliaAppleMusicProviderBridge
 
     private weak var webView: WKWebView?
 
     public var onAudioSessionError: ((Error) -> Void)?
     public var onPersistenceError: ((Error) -> Void)?
+    private var externalProviderRequestHandler: (([String: Any], @escaping ([String: Any]) -> Void) -> Void)?
 
     public init(
         webView: WKWebView,
@@ -33,6 +35,8 @@ public final class FoliaNativePlaybackHost {
         self.webView = webView
         self.snapshotStore = snapshotStore
         self.appleMusicPlaybackBridge = FoliaAppleMusicPlaybackBridge(webView: webView)
+        self.appleMusicProviderBridge = FoliaAppleMusicProviderBridge(webView: webView)
+        self.externalProviderRequestHandler = onProviderRequest
 
         let engine = FoliaAVPlayerEngine(isAllowedMediaURL: isAllowedMediaURL)
         let router = FoliaBridgeRouter(
@@ -52,7 +56,20 @@ public final class FoliaNativePlaybackHost {
         self.recovery = recovery
 
         engine.attach(to: router)
-        engine.onProviderRequest = onProviderRequest
+        engine.onProviderRequest = { [weak self] request, reply in
+            guard let self else {
+                reply(["ok": false, "error": "provider-host-unavailable"])
+                return
+            }
+            let action = request["action"] as? String ?? ""
+            if action.hasPrefix("appleMusic") {
+                self.appleMusicProviderBridge.handle(request, reply: reply)
+            } else if let handler = self.externalProviderRequestHandler {
+                handler(request, reply)
+            } else {
+                reply(["ok": false, "error": "provider-service-not-installed"])
+            }
+        }
         engine.onPlaybackStateChanged = { [weak keeper] in
             keeper?.refreshNowPlayingInfo()
         }
@@ -79,6 +96,13 @@ public final class FoliaNativePlaybackHost {
     public func installAppleMusicPlaybackDispatcher(source: String, completion: @escaping (Error?) -> Void) {
         dispatchPrecondition(condition: .onQueue(.main))
         appleMusicPlaybackBridge.install(dispatcherSource: source, completion: completion)
+    }
+
+    /// Install the Apple Music catalog/account provider JavaScript source.
+    /// Supply UTF-8 source from compat/ios-bridge/apple-music-provider.js.
+    public func installAppleMusicProviderDispatcher(source: String, completion: @escaping (Error?) -> Void) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicProviderBridge.install(dispatcherSource: source, completion: completion)
     }
 
     /// Send a MusicKit operation through the explicit replacement bridge envelope.
@@ -131,7 +155,7 @@ public final class FoliaNativePlaybackHost {
         _ handler: (([String: Any], @escaping ([String: Any]) -> Void) -> Void)?
     ) {
         dispatchPrecondition(condition: .onQueue(.main))
-        engine.onProviderRequest = handler
+        externalProviderRequestHandler = handler
     }
 
     /// Call from the host's teardown path on the main queue before releasing the WebView.
@@ -139,6 +163,7 @@ public final class FoliaNativePlaybackHost {
         dispatchPrecondition(condition: .onQueue(.main))
         engine.onPlaybackStateChanged = nil
         engine.onProviderRequest = nil
+        externalProviderRequestHandler = nil
         keeper.onApplicationLifecycleChanged = nil
         keeper.onAudioSessionError = nil
         router.uninstall()
