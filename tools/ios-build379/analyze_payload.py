@@ -54,7 +54,7 @@ def main():
     js_files = sorted(str(p.relative_to(base)) for p in base.rglob("*.js"))
     css_files = sorted(str(p.relative_to(base)) for p in base.rglob("*.css"))
     package_files = sorted(str(p.relative_to(base)) for p in base.rglob("package.json"))
-    visualizers = sorted(p.name for p in (base / "assets").glob("*") if re.search(r"visualizer|partita|sonnet|tempera|lumiere", p.name, re.I)) if (base / "assets").exists()
+    visualizer_dir = base / "assets"\n    visualizers = sorted(p.name for p in visualizer_dir.glob("*") if re.search(r"visualizer|partita|sonnet|tempera|lumiere", p.name, re.I)) if visualizer_dir.exists() else []
     runtime = base / "runtime-config.js"
     scale = base / "ios-fix" / "scale.js"
     runtime_text = runtime.read_text("utf-8", errors="replace") if runtime.exists() else ""
