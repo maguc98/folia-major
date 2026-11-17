@@ -42,7 +42,7 @@ The IPA contains a compiled native executable and packaged web/runtime assets. I
 
 ## Import status
 
-The branch and baseline documentation exist. The complete 59 MiB IPA and its extracted public resources have **not** been uploaded to this repository. The connected GitHub operations available here can write text and Git objects but do not expose a binary Git LFS or release-asset upload path. This record is not a completed binary/source import.
+The branch and baseline documentation exist. The complete IPA and extracted web resources have **not** been uploaded to this repository. A sanitized web payload archive was prepared locally: `Folia-iOS-3.0.6-build379-public-clean.zip` (43,202,482 bytes; SHA-256 `7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef`). It contains the `public/` tree with the authentication-state directory removed. The connected GitHub operations available here do not expose a binary Git LFS or release-asset upload path, so the archive still needs to be uploaded through a binary-capable GitHub path. This is a prepared sanitized payload, not a completed repository import.
 
 ## Next engineering steps
 
