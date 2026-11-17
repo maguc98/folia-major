@@ -80,3 +80,25 @@ test("invalid track load does not mutate state", () => {
   state = reducePlayerState(state, { type: "load", session: "s1", generation: 2, track: { url: "bad" }, autoplay: true });
   assert.deepEqual(state, before);
 });
+
+test("background and foreground transitions preserve explicit pause intent", () => {
+  let state = createPlayerState();
+  state = send(state, "load", { track: track("a"), autoplay: true });
+  state = send(state, "pause");
+  state = send(state, "background");
+  state = send(state, "foreground");
+  assert.equal(state.lifecycle, "foreground");
+  assert.equal(state.desiredPlaying, false);
+  assert.equal(state.transport, "paused");
+});
+
+test("interruption end changes lifecycle but does not invent a resume command", () => {
+  let state = createPlayerState();
+  state = send(state, "load", { track: track("a"), autoplay: true });
+  state = send(state, "interruption-began");
+  state = send(state, "pause");
+  state = send(state, "interruption-ended");
+  assert.equal(state.lifecycle, "foreground");
+  assert.equal(state.desiredPlaying, false);
+  assert.equal(state.transport, "paused");
+});
