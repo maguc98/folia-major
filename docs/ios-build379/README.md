@@ -118,3 +118,12 @@ The current suite has 9 tests and passed locally under Node.js 22. The manual Gi
 ## Native player lifecycle reference
 
 The native executable's Swift symbol map is documented in `docs/ios-build379/native-player-lifecycle-map.md`. It covers `FoliaNativePlayer`, the separate `FoliaPlaybackKeeper` and `FoliaBackGuard`, queue/auto-advance methods, WebContent reload recovery, Now Playing/remote controls and the native audio-tap analysis path. These are symbol-level findings, not recovered Swift method bodies.
+
+
+## Native player state-machine reconstruction
+
+The deeper static reconstruction is in `docs/ios-build379/native-player-state-machine.md`. It separates direct binary evidence from structural inference and records the observed session/generation guards, item observers, queue/late-queue paths, background/interruption recovery, WebView reload recovery, system media controls, audio-tap analysis, and embedded self-test markers. The embedded self-test strings are not evidence that a test ran or passed.
+
+The Swift router scaffold has also been hardened: JSON booleans are distinguished from numeric `NSNumber` values, generation is constrained to a non-negative safe integer, seek/volume values must be finite, optional load queues are bounded, and media URL acceptance is delegated to an explicit host policy. Its default policy allows only HTTP(S) URLs with a host; local `file:` media is denied unless the integrating app supplies a sandbox-aware allowlist. This is a new security policy for the scaffold, not a claim about the original binary's URL policy.
+
+The router remains uncompiled against the iOS SDK and has not been runtime-tested on a device.
