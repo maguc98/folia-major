@@ -26,7 +26,7 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 - Play, pause, toggle, seek, next, and previous remote command handlers.
 - Previous-track behavior seeks to the start when current position is over three seconds; otherwise it loads the most recent previous queue entry.
 - The AVPlayer engine preserves explicit user intent for remote play/pause and uses its existing queue/event path for next/previous.
-- Audio-session interruption begin/end is routed to the engine. The engine preserves desired-playing intent during interruption and resumes only when iOS supplies the `shouldResume` option.
+- On iOS 27+, the keeper uses audio-session inactive/active/resumption-recommendation notifications; the system recommendation must allow resume and asynchronous session activation must succeed. iOS 15–26 use the legacy interruption notification fallback.
 - An output-device-disconnected route change pauses playback and clears desired-playing intent to avoid unexpectedly switching private headphone audio to the speaker. Other route changes preserve playback intent.
 - App background/foreground notifications are surfaced through `onApplicationLifecycleChanged`, allowing the host to persist snapshots or coordinate app-specific lifecycle work without embedding app-delegate policy in the player.
 - Audio session activation uses `.playback`; there is no silent audio loop or fabricated keep-alive.
@@ -36,7 +36,8 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 - Enable the app target's Background Modes > Audio, AirPlay, and Picture in Picture as required by the product's actual use case. The entitlement/capability and `Info.plist` configuration are Xcode target settings and cannot be supplied by these standalone Swift files.
 - The host must refresh Now Playing metadata as the current item and timeline change. This scaffold deliberately does not create a second periodic timer.
 - The remote next/previous controls are currently enabled at the command-center level; the transport safely no-ops when no queue entry exists. A future queue-capability callback can make this more precise.
-- No artwork loading, lyrics, MusicKit-specific Now Playing behavior, audio tap, or persisted playback recovery is implemented. The interruption policy here is intentionally conservative and still requires device verification against Folia build 379.
+- No artwork loading, lyrics, MusicKit-specific Now Playing behavior, or original keep-alive logic is reproduced. Audio analysis and persisted playback recovery are now separate modules documented in `native-audio-tap-scaffold.md` and `web-content-recovery-scaffold.md`.
+- Media-services reset currently re-applies the `.playback` category; it does not yet recreate the AVPlayer or recover a player item after the reset.
 - This is not a substitute for testing with a real iPhone, lock screen, wired/Bluetooth headphones, AirPlay route changes, calls, Siri, and background playback.
 
 ## Verification status
