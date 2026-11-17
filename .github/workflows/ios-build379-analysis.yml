@@ -1,0 +1,57 @@
+name: Analyze Folia iOS Build 379 Payload
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_url:
+        description: "Direct HTTPS download URL for Folia-iOS-3.0.6-build379-public-clean.zip (sanitized public payload only)"
+        required: true
+        type: string
+      expected_sha256:
+        description: "Expected SHA-256 of the sanitized ZIP"
+        required: true
+        default: "7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: folia-ios-build379-analysis
+  cancel-in-progress: false
+
+jobs:
+  analyze:
+    name: Inspect sanitized iOS payload
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out analysis scripts
+        uses: actions/checkout@v4
+        with:
+          ref: ios-build379-baseline
+
+      - name: Download sanitized payload
+        env:
+          ARTIFACT_URL: ${{ inputs.artifact_url }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+        run: |
+          set -euo pipefail
+          case "$ARTIFACT_URL" in
+            https://*) ;;
+            *) echo "::error::Only HTTPS download URLs are accepted."; exit 1 ;;
+          esac
+          curl --fail --location --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o /tmp/folia-payload.zip
+          echo "$EXPECTED_SHA256  /tmp/folia-payload.zip" | sha256sum --check -
+
+      - name: Analyze archive and front-end resources
+        run: |
+          python3 tools/ios-build379/analyze_payload.py /tmp/folia-payload.zip --output analysis-output
+
+      - name: Upload analysis report
+        uses: actions/upload-artifact@v4
+        with:
+          name: folia-ios-build379-analysis
+          path: analysis-output/
+          if-no-files-found: error
+          retention-days: 30
