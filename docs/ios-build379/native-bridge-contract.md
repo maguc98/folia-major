@@ -168,7 +168,39 @@ A future wrapper must preserve each route independently. A generic replacement W
 6. Reply to every accepted provider request exactly once; always include the matching ID and the documented `payload.ok` envelope.
 7. Preserve request timeouts and clean pending entries on both resolve and reject.
 
-## 6. Evidence limits and next implementation step
+
+
+## 6. Additional native-side Apple Music playback bridge evidence
+
+A second pass over the native executable's embedded printable JavaScript strings revealed a MusicKit command implementation associated with the native `FoliaMusicProviderBridge`. This is distinct from the web provider registry's `appleMusicRequest` operation envelope.
+
+The embedded script checks for `window.MusicKit.getInstance()` and supports these command operations:
+
+- `play`
+- `pause` / `stop`
+- `resume`
+- `seek`
+- `volume`
+- `repeat`
+- `prepareNext`
+- `next`
+- `previous`
+- `toggle`
+- `status`
+
+Validation visible in the embedded script includes:
+
+- `play`: non-empty `tracks` array, at most 100 entries; each `catalogId` must match the bounded alphanumeric/dot/underscore/hyphen pattern.
+- `seek`: `seconds` must be finite and non-negative.
+- `volume`: `volume` must be finite and is clamped to 0–1.
+- `repeat`: `loopMode` must be one of `off`, `one`, `all`.
+- `prepareNext`: `nextIds` must be an array of at most two IDs, and the requested current catalog identity must match the MusicKit queue identity.
+
+The embedded script also contains queue-identity checks, stale-request/epoch cancellation, storefront alignment, and a narrowly scoped equivalent-catalog-ID recovery path. These are meaningful native implementation details visible in the binary's embedded JavaScript strings. They do **not** establish the exact outer WebKit message envelope for every MusicKit command, so the compatibility checklist should not invent one.
+
+The native binary also contains the string `appleMusicPlayback`, while the shipped provider registry's direct WebKit request helper uses `appleMusicRequest`. Treat these as separate native-side concepts until the original Swift message dispatch source or runtime traces establish the exact mapping.
+
+## 7. Evidence limits and next implementation step
 
 - The JavaScript request and event envelopes above are directly visible in the shipped bundles.
 - The IPA binary contains native class/method symbols consistent with the handlers and playback/provider responsibilities.
@@ -176,7 +208,7 @@ A future wrapper must preserve each route independently. A generic replacement W
 - Before implementing a replacement wrapper, obtain the author's native project or instrument the original app on a test device to capture representative message/reply pairs.
 - Do not alter the production bridge protocol based only on guessed native behavior. First build a protocol harness that can replay captured fixtures and compare event ordering.
 
-## 7. Synthetic contract fixtures and tests
+## 8. Synthetic contract fixtures and tests
 
 The repository includes a JSON Schema at `schemas/native-bridge-build379.schema.json`, synthetic message fixtures at `tests/fixtures/native-bridge-build379.json`, and dependency-free structural tests at `tests/test_native_bridge_build379.py`. These fixtures are intentionally synthetic and contain no real account/session data. They test the observed web-side envelope shape only; they are not packet captures from the original app and do not verify native execution.
 
@@ -186,7 +218,7 @@ Run the structural checks with:
 python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
 ```
 
-## 8. Source files examined
+## 9. Source files examined
 
 - `public/assets/main-D3qKLyAO.js`
 - `public/assets/bootstrap-FH45rHF5.js`
