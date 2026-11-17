@@ -43,7 +43,6 @@ public final class NativeAudioTapAnalyzer {
     }
 
     private let lock = NSLock()
-    private var activeTap: MTAudioProcessingTap?
     private var sampleKind: SampleKind = .unsupported
     private var sampleRate: Double = 44_100
     private var isNonInterleaved = false
@@ -64,10 +63,6 @@ public final class NativeAudioTapAnalyzer {
     public var onBands: ((FoliaAudioBands) -> Void)?
 
     public init() {}
-
-    deinit {
-        activeTap = nil
-    }
 
     public func makeAudioMix(for track: AVAssetTrack) throws -> AVAudioMix {
         reset()
@@ -113,18 +108,14 @@ public final class NativeAudioTapAnalyzer {
             )
         }
 
-        let tap = createdTap.takeRetainedValue()
         let parameters = AVMutableAudioMixInputParameters(track: track)
-        parameters.audioTapProcessor = tap
+        parameters.audioTapProcessor = createdTap.takeRetainedValue()
         let mix = AVMutableAudioMix()
         mix.inputParameters = [parameters]
-        lock.lock()
-        activeTap = tap
-        lock.unlock()
         return mix
     }
 
-    /// Release the analyzer's strong tap reference when its AVPlayerItem is replaced.
+    /// Reset band history when its AVPlayerItem is replaced or the tap is unprepared.
     public func reset() {
         lock.lock()
         lp150 = 0
@@ -135,7 +126,6 @@ public final class NativeAudioTapAnalyzer {
         smoothed = Array(repeating: 0, count: 6)
         lastPublishTime = 0
         lock.unlock()
-        activeTap = nil
     }
 
     private func prepare(format: AudioStreamBasicDescription) {
