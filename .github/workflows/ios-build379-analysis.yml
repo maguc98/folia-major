@@ -21,6 +21,19 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  swift-syntax:
+    name: Parse native Swift scaffolds
+    runs-on: macos-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ios-build379-baseline
+      - name: Parse WKWebView router and AVPlayer engine
+        run: |
+          swiftc -frontend -parse compat/ios-bridge/ios/FoliaBridgeRouter.swift compat/ios-bridge/ios/FoliaAVPlayerEngine.swift
+
   analyze:
     name: Inspect sanitized iOS payload
     runs-on: ubuntu-latest
