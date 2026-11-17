@@ -1,0 +1,48 @@
+{
+  "player_requests": [
+    {
+      "cmd": "load",
+      "url": "https://media.example.invalid/fixture.m4a",
+      "position": 0,
+      "autoplay": true,
+      "currentTrackKey": "fixture-track-001",
+      "track": {"trackKey": "fixture-track-001", "url": "https://media.example.invalid/fixture.m4a"},
+      "upcoming": [],
+      "previous": [],
+      "generation": 1,
+      "session": "fixture-session"
+    },
+    {"cmd": "play", "generation": 1, "session": "fixture-session"},
+    {"cmd": "pause", "userIntent": true, "generation": 1, "session": "fixture-session"},
+    {"cmd": "seek", "position": 12.5, "generation": 1, "session": "fixture-session"},
+    {"cmd": "volume", "volume": 0.65, "generation": 1, "session": "fixture-session"},
+    {"cmd": "muted", "muted": false, "generation": 1, "session": "fixture-session"},
+    {"cmd": "status", "generation": 1, "session": "fixture-session"},
+    {"cmd": "upcoming", "currentTrackKey": "fixture-track-001", "track": {"trackKey": "fixture-track-001"}, "upcoming": [], "previous": [], "generation": 1, "session": "fixture-session"},
+    {"cmd": "startup_prompts_seen"}
+  ],
+  "player_events": [
+    {"type": "loaded", "generation": 1, "session": "fixture-session"},
+    {"type": "error", "message": "fixture-error", "generation": 1, "session": "fixture-session"},
+    {"type": "state", "playing": true, "position": 12.5, "sentAtMs": 1000, "generation": 1, "session": "fixture-session"},
+    {"type": "time", "playing": true, "position": 12.5, "duration": 180, "sentAtMs": 1000, "generation": 1, "session": "fixture-session"},
+    {"type": "ended", "url": "https://media.example.invalid/fixture.m4a", "autoAdvancePrepared": false, "generation": 1, "session": "fixture-session"},
+    {"type": "auto-advanced", "trackKey": "fixture-track-002", "url": "https://media.example.invalid/next.m4a", "generation": 2, "session": "fixture-session"},
+    {"type": "audio", "power": 100, "bass": 120, "lowMid": 80, "mid": 60, "vocal": 70, "treble": 90, "generation": 1, "session": "fixture-session"}
+  ],
+  "provider_requests": [
+    {"id": "provider-fixture-001", "action": "appleMusicOpen"},
+    {"id": "provider-fixture-002", "action": "appleMusicStatus"},
+    {"id": "provider-fixture-003", "action": "appleMusicRequest", "operation": "lyrics", "params": {"songId": "12345"}},
+    {"id": "provider-fixture-004", "action": "appleMusicClose"},
+    {"id": "provider-fixture-005", "action": "appleMusicLogout"},
+    {"id": "provider-fixture-006", "action": "fnmusicLogin", "username": "fixture-user", "password": "fixture-only-not-a-real-password"},
+    {"id": "provider-fixture-007", "action": "fnmusicStatus"},
+    {"id": "provider-fixture-008", "action": "fnmusicRequest", "path": "/music/api/v1/search/track", "method": "GET", "params": {"q": "fixture"}},
+    {"id": "provider-fixture-009", "action": "fnmusicLogout"}
+  ],
+  "provider_replies": [
+    {"id": "provider-fixture-001", "payload": {"ok": true, "data": {"authenticated": false}}},
+    {"id": "provider-fixture-003", "payload": {"ok": false, "error": "fixture-error"}}
+  ]
+}
