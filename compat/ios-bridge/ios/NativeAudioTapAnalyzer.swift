@@ -73,6 +73,29 @@ public final class NativeAudioTapAnalyzer {
     public init() {}
 
     public func makeAudioMix(for track: AVAssetTrack) throws -> AVAudioMix {
+        let tap = try makeTap()
+        let parameters = AVMutableAudioMixInputParameters(track: track)
+        parameters.audioTapProcessor = tap
+        let mix = AVMutableAudioMix()
+        mix.inputParameters = [parameters]
+        return mix
+    }
+
+    /// iOS 27 adds an all-audio-tracks tap for AVPlayerItem. This captures the
+    /// rendered mix rather than just the first AVAssetTrack; FairPlay-protected
+    /// audio remains excluded by the platform.
+    @available(iOS 27.0, *)
+    public func makeAudioMixForAllTracks() throws -> AVAudioMix {
+        let tap = try makeTap()
+        let parameters = AVMutableAudioMixInputParameters(track: nil)
+        parameters.trackID = AVAudioMixInputParametersTrackID.mixID.rawValue
+        parameters.audioTapProcessor = tap
+        let mix = AVMutableAudioMix()
+        mix.inputParameters = [parameters]
+        return mix
+    }
+
+    private func makeTap() throws -> MTAudioProcessingTap {
         reset()
         let retainedCookie = Unmanaged.passRetained(TapCookie(analyzer: self))
         var callbacks = MTAudioProcessingTapCallbacks(
@@ -118,12 +141,7 @@ public final class NativeAudioTapAnalyzer {
                 userInfo: [NSLocalizedDescriptionKey: "audio-tap-create-failed"]
             )
         }
-
-        let parameters = AVMutableAudioMixInputParameters(track: track)
-        parameters.audioTapProcessor = createdTap
-        let mix = AVMutableAudioMix()
-        mix.inputParameters = [parameters]
-        return mix
+        return createdTap
     }
 
     /// Reset band history when its AVPlayerItem is replaced or the tap is unprepared.
