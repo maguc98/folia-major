@@ -48,3 +48,10 @@ See `ios/FoliaPlaybackKeeper.swift` and `../../docs/ios-build379/playback-keeper
 
 
 The integrated host exposes `installAppleMusicServices(playbackSource:providerSource:completion:)` and `restoreAfterWebContentReadyAndReinstallServices(...)` to reinstall both JS globals after a WebContent process restart. The host must wait until the reloaded page has initialized MusicKit and published its new session/generation before restoring native playback.
+
+
+### NodeMobile runtime lifecycle
+
+- `ios/FoliaNodeRuntimeCoordinator.swift`: supplies the exact environment contract from the extracted `main.js`, waits for the 3211/3212/3213 loopback services, and reports readiness/failure.
+- `FoliaNativePlaybackHost` accepts an optional app-provided `FoliaNodeRuntimeDriver` and stops it at teardown.
+- No concrete NodeMobile driver is included: the original framework header/launcher ABI and complete source resource tree are not available as editable files in the IPA. The app target must provide this adapter and bundle the complete `nodejs-project` directory.
