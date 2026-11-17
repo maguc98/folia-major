@@ -172,6 +172,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
 
         detachCurrentItemObservers()
         let item = AVPlayerItem(url: url)
+        installMixedAudioTapBeforePlaybackIfSupported(on: item)
         currentURL = url
         currentTrack = command["track"] as? [String: Any] ?? [:]
         if currentTrack["trackKey"] == nil {
@@ -274,6 +275,15 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                     "fresh": self.consumeFreshTrackFlag()
                 ])
             }
+        }
+    }
+
+    private func installMixedAudioTapBeforePlaybackIfSupported(on item: AVPlayerItem) {
+        guard #available(iOS 27.0, *), item.audioMix == nil else { return }
+        do {
+            item.audioMix = try audioAnalyzer.makeAudioMixForAllTracks()
+        } catch {
+            emit(["type": "error", "message": "audio-analysis-unavailable"])
         }
     }
 
@@ -561,6 +571,7 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
             return
         }
         let item = AVPlayerItem(url: savedURL)
+        installMixedAudioTapBeforePlaybackIfSupported(on: item)
         pendingSeek = position
         replacement.replaceCurrentItem(with: item)
         attachObservers(to: item)
