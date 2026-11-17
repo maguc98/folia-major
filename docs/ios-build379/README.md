@@ -189,3 +189,14 @@ The current branch now includes the following newly authored host-side building 
 The GitHub Actions workflow runs on pushes and pull requests to `ios-build379-baseline`: a macOS Swift syntax parse and Ubuntu JavaScript/Python fixture tests. A syntax parse is not an iOS SDK type-check or app build. The manual archive-analysis job still requires a direct HTTPS URL for the sanitized v2 ZIP.
 
 **Current output is a substantial compatibility source scaffold, not a built or installable IPA.** No Xcode/iOS SDK build, physical-device validation, signing, or IPA export has been completed.
+
+
+## NodeMobile runtime host contract
+
+The sanitized build-379 Node project was inspected directly. Its entry point assumes Node 18 and starts Kugou on 3211, QQ Music on 3212 and the general/Qishui proxy on 3213, all bound to 127.0.0.1 by default (ports can be shifted via environment variables). The entry point also configures QQ device/session persistence, Qishui paired-token session storage, a Node-18 WebCrypto and AbortSignal polyfill, a 2 MiB log cap, and an HTTPS-only Qishui fetch shim. See `docs/ios-build379/node-runtime-host-contract.md` for the complete environment, local HTTP routes, host setup sequence and proxy security hardening.
+
+The IPA contains the NodeMobile framework binary and a compiled `NodeRunner.start(projectDirectoryName:)` symbol, but not the original native launcher source or framework headers. The full `public/nodejs-project/` tree (including 8,153 files under `node_modules/`) has not been imported into this repository. Node services are therefore **mapped but not launched by the compatibility host**.
+
+## Integrated host and Apple Music playback helper
+
+`compat/ios-bridge/ios/FoliaNativePlaybackHost.swift` owns and wires the AVPlayer engine, WebKit router, playback keeper, protected snapshot store, WebContent recovery coordinator, and optional provider callback. It also exposes methods for installing and sending commands to the separate MusicKit playback dispatcher. The dispatcher source must be supplied by the host from `compat/ios-bridge/apple-music-playback.js`. The original provider auth envelope, MusicKit authorization screen lifecycle and Feiniu account/backend service still require controlled host-side implementation and runtime comparison.
