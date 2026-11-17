@@ -9,6 +9,7 @@ public final class FoliaNativePlaybackHost {
     public let keeper: FoliaPlaybackKeeper
     public let recovery: FoliaWebContentRecoveryCoordinator
     public let snapshotStore: FoliaPlaybackSnapshotStore
+    public let appleMusicPlaybackBridge: FoliaAppleMusicPlaybackBridge
 
     private weak var webView: WKWebView?
 
@@ -31,6 +32,7 @@ public final class FoliaNativePlaybackHost {
         dispatchPrecondition(condition: .onQueue(.main))
         self.webView = webView
         self.snapshotStore = snapshotStore
+        self.appleMusicPlaybackBridge = FoliaAppleMusicPlaybackBridge(webView: webView)
 
         let engine = FoliaAVPlayerEngine(isAllowedMediaURL: isAllowedMediaURL)
         let router = FoliaBridgeRouter(
@@ -70,6 +72,22 @@ public final class FoliaNativePlaybackHost {
 
         keeper.install()
         router.install(on: webView)
+    }
+
+    /// Install the separate MusicKit playback dispatcher JavaScript source.
+    /// Supply the UTF-8 source from compat/ios-bridge/apple-music-playback.js.
+    public func installAppleMusicPlaybackDispatcher(source: String, completion: @escaping (Error?) -> Void) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicPlaybackBridge.install(dispatcherSource: source, completion: completion)
+    }
+
+    /// Send a MusicKit operation through the explicit replacement bridge envelope.
+    public func sendAppleMusicPlayback(
+        operation: String, params: [String: Any] = [:],
+        completion: @escaping (Result<[String: Any], Error>) -> Void
+    ) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        appleMusicPlaybackBridge.send(operation: operation, params: params, completion: completion)
     }
 
     /// Activate the playback audio session when the host begins playback ownership.
