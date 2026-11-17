@@ -136,8 +136,9 @@ The model keeps `transport`, `desiredPlaying`, `current/upcoming/previous`, `lif
 - rejection of stale-generation events;
 - clearing prior state when a new session attaches;
 - immediate advancement when a next item is already queued;
-- waiting after end-of-item and advancement when a late queue arrives;
+- waiting after end-of-item and advancement when a late queue arrives, but only when playback intent remains active; a paused user must explicitly resume;
 - preserving the desired-playing flag for the host to interpret after the next item becomes ready;
+- rejecting duplicate or late end notifications using the current URL and the `endedForURL` guard (the binary exposes an `endedForURL` stored-property name);
 - failure state recording without changing session identity.
 
-This model intentionally does not call AVPlayer, schedule retries, decide interruption-resume policy, or claim to reproduce the original implementation. The eight tests passed locally under Node.js 22. The combined bridge and state-model suite reports 17/17 passing.
+This model intentionally does not call AVPlayer, schedule retries, decide interruption-resume policy, or claim to reproduce the original implementation. Thirteen state-model tests passed locally under Node.js 22.16.0. The combined bridge and state-model suite reports 22/22 passing (9 bridge-adapter tests and 13 state-model tests). The URL-based end guard is a compatibility-model choice informed by the binary's `endedForURL` property name; repeated queue entries that reuse the exact same URL still require device testing against the original behavior.
