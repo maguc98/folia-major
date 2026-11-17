@@ -53,8 +53,10 @@ def validate_player_request(message: dict) -> None:
 
 def validate_player_event(message: dict) -> None:
     assert message.get("type") in PLAYER_EVENTS, message
-    assert isinstance(message.get("session"), str), message
-    assert isinstance(message.get("generation"), int), message
+    if "session" in message:
+        assert isinstance(message["session"], str), message
+    if "generation" in message:
+        assert isinstance(message["generation"], int), message
     kind = message["type"]
     if kind in {"state", "time"}:
         assert isinstance(message.get("playing"), bool), message
