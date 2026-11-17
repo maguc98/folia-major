@@ -1,6 +1,6 @@
 import Foundation
 import AVFoundation
-import MediaPlayer
+import CoreFoundation
 
 /// A new AVPlayer-backed host implementation for the build-379 bridge contract.
 ///
