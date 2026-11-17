@@ -7,6 +7,9 @@
       "$ref": "#/$defs/playerRequest"
     },
     {
+      "$ref": "#/$defs/playerEvent"
+    },
+    {
       "$ref": "#/$defs/providerRequest"
     },
     {
@@ -248,8 +251,7 @@
               }
             },
             "required": [
-              "path",
-              "method"
+              "action"
             ]
           },
           "then": {
@@ -326,6 +328,169 @@
         }
       },
       "additionalProperties": true
+    },
+    "playerEvent": {
+      "type": "object",
+      "required": [
+        "type",
+        "session",
+        "generation"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "loaded",
+            "error",
+            "state",
+            "time",
+            "ended",
+            "auto-advanced",
+            "audio"
+          ]
+        },
+        "session": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "integer"
+        },
+        "message": {
+          "type": "string"
+        },
+        "playing": {
+          "type": "boolean"
+        },
+        "position": {
+          "type": "number",
+          "minimum": 0
+        },
+        "duration": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sentAtMs": {
+          "type": "number"
+        },
+        "url": {
+          "type": "string"
+        },
+        "autoAdvancePrepared": {
+          "type": "boolean"
+        },
+        "trackKey": {
+          "type": "string"
+        },
+        "power": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "bass": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "lowMid": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "mid": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "vocal": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "treble": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "state"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "playing",
+              "position"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "time"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "playing",
+              "position",
+              "duration"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "auto-advanced"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "trackKey",
+              "url"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "audio"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "required": [
+              "power",
+              "bass",
+              "lowMid",
+              "mid",
+              "vocal",
+              "treble"
+            ]
+          }
+        }
+      ]
     }
   }
 }
