@@ -100,3 +100,16 @@ python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
 ```
 
 The fixtures are synthetic contract examples, not captured production traffic. The suite currently contains seven positive/negative structural cases and is also run by the manual analysis workflow. Passing them validates message shape only; it does not emulate WebKit, AVPlayer, provider login, or the original Swift bridge.
+
+
+## Web-side bridge compatibility adapter
+
+A standalone adapter is available under `compat/ios-bridge/`. It includes player/provider message validators, injectable request transports, session/generation stamping, provider request correlation and timeout/teardown cleanup. It is deliberately separate from the immutable build-379 web payload.
+
+Run its Node.js tests:
+
+```bash
+node --test tests/bridge-compat.test.js
+```
+
+The current suite has 9 tests and passed locally under Node.js 22. The manual GitHub Actions workflow now runs this suite as well as the Python fixture tests. The adapter is not a native implementation and does not produce an IPA.
