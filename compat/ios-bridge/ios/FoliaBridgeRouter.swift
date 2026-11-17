@@ -116,8 +116,8 @@ public final class FoliaBridgeRouter: NSObject {
     }
 
     private func evaluate(_ script: String) {
-        DispatchQueue.main.async { [weak webView] in
-            webView?.evaluateJavaScript(script, completionHandler: nil)
+        DispatchQueue.main.async { [weak self] in
+            self?.webView?.evaluateJavaScript(script, completionHandler: nil)
         }
     }
 
