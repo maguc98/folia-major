@@ -1,0 +1,20 @@
+{
+  "display_name": "Folia",
+  "bundle_identifier": "top.izuna.foliaios",
+  "version": "3.0.6",
+  "build": "379",
+  "minimum_ios": "15.0",
+  "sdk": "iPhoneOS 27.0",
+  "xcode_metadata": "27.0",
+  "device_families": ["iPhone", "iPad"],
+  "embedded_frameworks": ["Capacitor.framework", "Cordova.framework", "NodeMobile.framework"],
+  "web_entry": "public/index.html",
+  "node_backend": "public/nodejs-project/",
+  "source_project_present_in_ipa": false,
+  "source_maps_present_in_assets_root": false,
+  "notes": [
+    "Metadata extracted from the supplied IPA Info.plist and package inventory.",
+    "No complete editable Xcode/Swift project was found in the IPA.",
+    "The sanitized v2 ZIP contains public/ assets only; it is not a rebuildable IPA."
+  ]
+}
