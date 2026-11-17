@@ -82,7 +82,8 @@ test("favorite writes use the correct method and provider status hashes user ide
   assert.equal(f.calls.some(call => call.path === "v1/me/favorites" && call.options.fetchOptions.method === "POST"), true);
   const status = await f.dispatch({ action: "appleMusicStatus" });
   assert.equal(status.ok, true);
-  assert.equal(status.data.nickname, "Listener");
+  assert.equal(status.data.authenticated, true);
+  assert.equal(status.data.user.nickname, "Listener");
   assert.equal(status.data.storefront, "us");
   assert.equal(status.data.id.length, 64);
 });
@@ -96,4 +97,11 @@ test("authorization and logout update MusicKit authorization without leaking tok
   assert.deepEqual(loggedOut, { ok: true, data: {} });
   assert.equal(f.mk.isAuthorized, false);
   assert.equal(JSON.stringify(loggedOut).includes("user-token"), false);
+});
+
+test("Apple Music status matches original authenticated/user envelope", async () => {
+  const f = fixture();
+  f.mk.isAuthorized = false;
+  const result = await f.dispatch({ action: "appleMusicStatus" });
+  assert.deepEqual(result, { ok: true, data: { authenticated: false } });
 });
