@@ -27,6 +27,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var pendingSeek: Double?
     private var endedForURL: String?
     private var pendingFreshTrackEvent = false
+    private var interruptedBySystem = false
     private let isAllowedMediaURL: (URL) -> Bool
 
     /// Optional host callback, invoked on the main queue whenever a native player event is emitted.
@@ -436,6 +437,39 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         guard !upcoming.isEmpty else { return }
         desiredPlaying = true
         advanceIfPossible(reason: "remote-next")
+    }
+
+    public func playbackInterruptionBegan() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        interruptedBySystem = desiredPlaying || player.rate > 0
+        player.pause()
+        emitState()
+    }
+
+    public func playbackInterruptionEnded(shouldResume: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard interruptedBySystem else {
+            emitState()
+            return
+        }
+        interruptedBySystem = false
+        // A system interruption is not a user pause. Preserve desiredPlaying,
+        // but resume only when iOS explicitly grants the shouldResume option.
+        if shouldResume && desiredPlaying {
+            player.play()
+        }
+        emitState()
+    }
+
+    public func playbackRouteChanged(outputWasDisconnected: Bool) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        if outputWasDisconnected {
+            // Headphones becoming unavailable is treated as an intentional
+            // stop to avoid unexpectedly moving private audio to the speaker.
+            desiredPlaying = false
+            player.pause()
+        }
+        emitState()
     }
 
     public func playbackPreviousFromSystem() {
