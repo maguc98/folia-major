@@ -1,5 +1,6 @@
 import Foundation
 import WebKit
+import CoreFoundation
 
 /// Delegate implemented by a host app that owns the real AVPlayer/MusicKit/Feiniu services.
 /// This router only validates and forwards bridge messages; it does not implement playback or login.
@@ -36,16 +37,26 @@ public final class FoliaBridgeRouter: NSObject {
     private weak var delegate: FoliaBridgeRouterDelegate?
     private let isTrustedFrame: (WKFrameInfo) -> Bool
     private let maximumMessageBytes: Int
+    private let isAllowedMediaURL: (URL) -> Bool
     private var proxies: [String: WeakFoliaScriptMessageHandler] = [:]
 
     public init(
         delegate: FoliaBridgeRouterDelegate,
         maximumMessageBytes: Int = 256 * 1024,
-        isTrustedFrame: @escaping (WKFrameInfo) -> Bool
+        isTrustedFrame: @escaping (WKFrameInfo) -> Bool,
+        isAllowedMediaURL: @escaping (URL) -> Bool = { url in
+            guard let scheme = url.scheme?.lowercased() else { return false }
+            if scheme == "https" || scheme == "http" {
+                return url.host?.isEmpty == false && url.user == nil && url.password == nil
+            }
+            // Local media is denied unless the host explicitly supplies a sandbox-aware policy.
+            return false
+        }
     ) {
         self.delegate = delegate
         self.maximumMessageBytes = max(1, maximumMessageBytes)
         self.isTrustedFrame = isTrustedFrame
+        self.isAllowedMediaURL = isAllowedMediaURL
         super.init()
     }
 
@@ -81,7 +92,7 @@ public final class FoliaBridgeRouter: NSObject {
 
         switch message.name {
         case Self.playerHandlerName:
-            guard Self.isValidPlayerCommand(body) else { return }
+            guard Self.isValidPlayerCommand(body, isAllowedMediaURL: isAllowedMediaURL) else { return }
             delegate?.foliaBridgeRouter(self, didReceivePlayerCommand: body)
         case Self.providerHandlerName:
             guard Self.isValidProviderRequest(body) else { return }
@@ -132,36 +143,65 @@ public final class FoliaBridgeRouter: NSObject {
         return value
     }
 
-    private static func isValidPlayerCommand(_ body: [String: Any]) -> Bool {
+    private static func isBoolean(_ value: Any?) -> Bool {
+        guard let number = value as? NSNumber else { return false }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
+    }
+
+    private static func finiteNumber(_ value: Any?) -> NSNumber? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue.isFinite else { return nil }
+        return number
+    }
+
+    private static func isValidPlayerCommand(
+        _ body: [String: Any],
+        isAllowedMediaURL: (URL) -> Bool
+    ) -> Bool {
         guard let command = body["cmd"] as? String else { return false }
         if command == "startup_prompts_seen" { return true }
+
+        guard let session = body["session"] as? String,
+              !session.isEmpty, session.count <= 256,
+              let generation = finiteNumber(body["generation"]),
+              generation.doubleValue >= 0,
+              generation.doubleValue.rounded(.towardZero) == generation.doubleValue,
+              generation.doubleValue <= Double(Int64.max) else { return false }
+
         let commands: Set<String> = ["load", "play", "pause", "seek", "volume", "muted", "status", "upcoming"]
-        guard commands.contains(command),
-              let session = body["session"] as? String, !session.isEmpty, session.count <= 256,
-              let generation = body["generation"] as? NSNumber, generation.int64Value >= 0 else { return false }
+        guard commands.contains(command) else { return false }
 
         switch command {
         case "load":
-            guard let rawURL = body["url"] as? String,
-                  let url = URL(string: rawURL),
-                  ["http", "https", "file"].contains(url.scheme?.lowercased() ?? ""),
-                  url.user == nil, url.password == nil,
-                  let position = body["position"] as? NSNumber, position.doubleValue.isFinite, position.doubleValue >= 0,
-                  body["autoplay"] is Bool else { return false }
+            guard let rawURL = body["url"] as? String, rawURL.count <= 8192,
+                  let url = URL(string: rawURL), isAllowedMediaURL(url),
+                  let position = finiteNumber(body["position"]), position.doubleValue >= 0,
+                  isBoolean(body["autoplay"]) else { return false }
+            if let track = body["track"], !(track is [String: Any]) && !(track is NSNull) { return false }
+            if let upcoming = body["upcoming"], !(upcoming is [Any]) || (upcoming as? [Any])?.count ?? 501 > 500 { return false }
+            if let previous = body["previous"], !(previous is [Any]) || (previous as? [Any])?.count ?? 501 > 500 { return false }
+
         case "seek":
-            guard let position = body["position"] as? NSNumber, position.doubleValue.isFinite, position.doubleValue >= 0 else { return false }
+            guard let position = finiteNumber(body["position"]), position.doubleValue >= 0 else { return false }
+
         case "volume":
-            guard let volume = body["volume"] as? NSNumber, volume.doubleValue.isFinite, (0...1).contains(volume.doubleValue) else { return false }
+            guard let volume = finiteNumber(body["volume"]),
+                  (0...1).contains(volume.doubleValue) else { return false }
+
         case "muted":
-            guard body["muted"] is Bool else { return false }
+            guard isBoolean(body["muted"]) else { return false }
+
         case "pause":
-            if let value = body["userIntent"], !(value is Bool) { return false }
-            if let value = body["releaseIntent"], !(value is Bool) { return false }
+            if let value = body["userIntent"], !isBoolean(value) { return false }
+            if let value = body["releaseIntent"], !isBoolean(value) { return false }
+
         case "upcoming":
             guard let key = body["currentTrackKey"] as? String, key.count <= 512,
                   body["track"] is [String: Any] || body["track"] is NSNull,
                   let upcoming = body["upcoming"] as? [Any], upcoming.count <= 500,
                   let previous = body["previous"] as? [Any], previous.count <= 500 else { return false }
+
         default:
             break
         }
