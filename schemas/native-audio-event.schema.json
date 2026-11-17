@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/folia/native-audio-event.schema.json",
+  "title": "Folia native audio analysis event",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "type",
+    "session",
+    "generation",
+    "power",
+    "bass",
+    "lowMid",
+    "mid",
+    "vocal",
+    "treble"
+  ],
+  "properties": {
+    "type": {
+      "const": "audio"
+    },
+    "session": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "generation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "power": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "bass": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "lowMid": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "mid": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "vocal": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "treble": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    }
+  }
+}
