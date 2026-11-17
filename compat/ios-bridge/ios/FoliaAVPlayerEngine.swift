@@ -262,8 +262,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         let next = upcoming.removeFirst()
         guard let rawURL = next["url"] as? String,
               let url = URL(string: rawURL),
-              ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
-              url.host?.isEmpty == false else {
+              isAllowedMediaURL(url) else {
             emit(["type": "error", "message": "next-track-url-invalid"])
             return
         }
@@ -298,7 +297,14 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     }
 
     private func emitState() {
-        emitState()
+        let position = player.currentTime().seconds
+        var payload: [String: Any] = [
+            "type": "state",
+            "playing": player.rate > 0,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000
+        ]
+        if position.isFinite { payload["position"] = position }
+        emit(payload)
     }
 
     private func publishStatus() {
@@ -308,7 +314,8 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             "playing": player.rate > 0,
             "volume": volume,
             "muted": muted,
-            "desiredPlaying": desiredPlaying
+            "desiredPlaying": desiredPlaying,
+            "sentAtMs": Date().timeIntervalSince1970 * 1000
         ]
         if position.isFinite { payload["position"] = position }
         if let url = currentURL?.absoluteString { payload["url"] = url }
