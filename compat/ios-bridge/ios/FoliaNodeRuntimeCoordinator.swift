@@ -60,9 +60,9 @@ public final class FoliaNodeRuntimeCoordinator {
         self.configuration = configuration
         self.fileManager = fileManager
         self.urlSession = urlSession
-        let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+        let support = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fileManager.temporaryDirectory
-        self.logDirectory = documents.appendingPathComponent("FoliaNode", isDirectory: true)
+        self.logDirectory = support.appendingPathComponent("FoliaNode", isDirectory: true)
     }
 
     /// Creates the app-owned state directory, starts NodeMobile with the exact
@@ -77,6 +77,10 @@ public final class FoliaNodeRuntimeCoordinator {
                 withIntermediateDirectories: true,
                 attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication]
             )
+            var directoryValues = URLResourceValues()
+            directoryValues.isExcludedFromBackup = true
+            var protectedLogDirectory = logDirectory
+            try protectedLogDirectory.setResourceValues(directoryValues)
 
             let kugouPort = 3_211 + configuration.portOffset
             let qqPort = 3_212 + configuration.portOffset
