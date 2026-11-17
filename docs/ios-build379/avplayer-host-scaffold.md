@@ -27,9 +27,10 @@ The URL policy supplied to the router and engine must agree. The default policy 
 - Initial seek after item readiness.
 - Current/upcoming/previous queue storage and basic immediate/late queue progression.
 - Native event envelopes with session and generation.
-- Build-379 web event fields for `state` (`playing`, `position`, `sentAtMs`), `time` (`playing`, `position`, `duration`, `sentAtMs`), `ended` (`url`, `autoAdvancePrepared`) and `auto-advanced` (`trackKey`, `url`, `position`).
+- Build-379 web event fields for `state` (`playing`, `position`, `sentAtMs`), `time` (`playing`, `position`, `duration`, `sentAtMs`), `ended` (`url`, `autoAdvancePrepared`) and `auto-advanced` (`trackKey`, `url`, `position`). The first subsequent `loaded`/`state`/`time` event carries `fresh: true` after an auto-advance, matching the web bundle's fresh-track notification gate.
+- `pause` respects `userIntent` and `releaseIntent` independently: an explicit user pause or release of native ownership clears the engine's desired-play flag; a pause without either marker uses the conservative clear-intent behavior.
 
-The `auto-advanced` event is emitted after the next AVPlayer item is installed, not after it becomes ready. The web bundle uses it to cancel its delayed HTMLMediaElement ended fallback and update current track identity. Device testing must verify that this timing is sufficient for slow and unplayable sources.
+The `auto-advanced` event is emitted after the next AVPlayer item is installed, not after it becomes ready. The web bundle uses it to cancel its delayed HTMLMediaElement ended fallback and update current track identity. The following `loaded` or timeline event carries `fresh: true`, which the web bundle uses to dispatch its `folia:native-auto-advanced` custom event. Device testing must verify that this timing is sufficient for slow and unplayable sources.
 
 ## Known gaps — do not claim full compatibility
 
