@@ -50,6 +50,18 @@ public final class FoliaPlaybackSnapshotStore {
             throw error("invalid-or-sensitive-snapshot")
         }
 
+        for key in ["upcoming", "previous"] {
+            if let tracks = snapshot[key] as? [[String: Any]] {
+                for track in tracks {
+                    guard let rawTrackURL = track["url"] as? String,
+                          let trackURL = URL(string: rawTrackURL),
+                          isPersistableURL(trackURL) else {
+                        throw error("queue-contains-sensitive-or-invalid-url")
+                    }
+                }
+            }
+        }
+
         let data = try JSONSerialization.data(withJSONObject: snapshot, options: [.sortedKeys])
         guard data.count <= maximumBytes else { throw error("snapshot-too-large") }
         let directory = fileURL.deletingLastPathComponent()
@@ -79,6 +91,7 @@ public final class FoliaPlaybackSnapshotStore {
               let version = object["schemaVersion"] as? Int, version == 1,
               let savedAt = object["savedAt"] as? NSNumber,
               savedAt.doubleValue.isFinite,
+              Date().timeIntervalSince1970 - savedAt.doubleValue >= -60,
               Date().timeIntervalSince1970 - savedAt.doubleValue <= maxAge,
               let rawURL = object["url"] as? String,
               let url = URL(string: rawURL), isPersistableURL(url),
