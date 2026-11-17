@@ -215,13 +215,7 @@
         "method": {
           "type": "string"
         },
-        "body": {},
-        "username": {
-          "type": "string"
-        },
-        "password": {
-          "type": "string"
-        }
+        "body": {}
       },
       "additionalProperties": true,
       "allOf": [
