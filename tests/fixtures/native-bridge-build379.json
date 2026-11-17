@@ -36,7 +36,7 @@
     {"id": "provider-fixture-003", "action": "appleMusicRequest", "operation": "lyrics", "params": {"songId": "12345"}},
     {"id": "provider-fixture-004", "action": "appleMusicClose"},
     {"id": "provider-fixture-005", "action": "appleMusicLogout"},
-    {"id": "provider-fixture-006", "action": "fnmusicLogin", "username": "fixture-user", "password": "fixture-only-not-a-real-password"},
+    {"id": "provider-fixture-006", "action": "fnmusicLogin"},
     {"id": "provider-fixture-007", "action": "fnmusicStatus"},
     {"id": "provider-fixture-008", "action": "fnmusicRequest", "path": "/music/api/v1/search/track", "method": "GET", "params": {"q": "fixture"}},
     {"id": "provider-fixture-009", "action": "fnmusicLogout"}
