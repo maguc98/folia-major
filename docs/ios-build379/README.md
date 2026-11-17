@@ -83,3 +83,20 @@ bash scripts/replace-ios-web-payload.sh /path/to/Payload/App.app /path/to/Folia-
 ```
 
 **Important:** replacing `public/` invalidates the original iOS code signature. The resulting app must be re-signed with an authorized signing identity before installation. This helper does not rebuild the native executable, restore missing Swift source, or produce an IPA.
+
+
+## Native bridge protocol baseline
+
+The WebKit bridge contract is documented in `docs/ios-build379/native-bridge-contract.md`. Machine-readable message definitions and synthetic compatibility fixtures are stored in:
+
+- `schemas/native-bridge-build379.schema.json`
+- `tests/fixtures/native-bridge-build379.json`
+- `tests/test_native_bridge_build379.py`
+
+Run the structural fixture tests:
+
+```bash
+python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
+```
+
+The fixtures are synthetic contract examples, not captured production traffic. Passing them validates message shape only; it does not emulate WebKit, AVPlayer, provider login, or the original Swift bridge.
