@@ -47,10 +47,11 @@ A workflow is available at `.github/workflows/ios-build379-analysis.yml`, with i
 The workflow accepts a direct HTTPS URL to the sanitized public payload ZIP and verifies its SHA-256 before extraction. It then inventories the web entry point, JS/CSS files, package manifests, renderer-related assets, largest files, and potentially sensitive paths. The Markdown report and JSON manifest are uploaded as a GitHub Actions artifact named `folia-ios-build379-analysis`.
 
 Expected sanitized archive:
-- File: `Folia-iOS-3.0.6-build379-public-clean.zip`
-- SHA-256: `7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef`
+- File: `Folia-iOS-3.0.6-build379-public-sanitized-v2.zip`
+- Size: `41,823,396` bytes
+- SHA-256: `f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32`
 
-The ZIP must first be placed at a stable HTTPS download location (for example, as a GitHub Release asset). The workflow does not accept the original IPA because it contains signing/authentication-related material that should not be published. This analysis job is not an Xcode build and does not recreate the original Swift project.
+The ZIP must first be placed at a stable HTTPS download location (for example, as a GitHub Release asset). The workflow default hash is pinned to the v2 archive above; do not use the superseded first-pass archive. The workflow does not accept the original IPA because it contains signing/authentication-related material that should not be published. This analysis job is not an Xcode build and does not recreate the original Swift project.
 
 ## Import status
 
