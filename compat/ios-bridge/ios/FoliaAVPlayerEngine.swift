@@ -645,4 +645,67 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         ])
     }
 }
-\n// MARK: - Persisted playback recovery\n\nextension FoliaAVPlayerEngine {\n    /// A bounded metadata/queue snapshot for the host's protected app-container store.\n    /// Signed URLs may be rejected by FoliaPlaybackSnapshotStore's URL policy.\n    public func makePlaybackPersistenceSnapshot() -> [String: Any]? {\n        dispatchPrecondition(condition: .onQueue(.main))\n        guard let url = currentURL?.absoluteString, !session.isEmpty, generation >= 0 else { return nil }\n        let rawPosition = player.currentTime().seconds\n        let position = rawPosition.isFinite && rawPosition >= 0 ? rawPosition : 0\n\n        func metadata(_ track: [String: Any]) -> [String: Any] {\n            var result: [String: Any] = [:]\n            for key in ["trackKey", "title", "name", "artist", "album"] {\n                if let value = track[key] as? String, value.count <= 2_048 { result[key] = value }\n            }\n            return result\n        }\n\n        func queue(_ tracks: [[String: Any]]) -> [[String: Any]] {\n            tracks.compactMap { track in\n                guard let raw = track["url"] as? String,\n                      let candidate = URL(string: raw), isAllowedMediaURL(candidate) else { return nil }\n                var value = metadata(track)\n                value["url"] = raw\n                return value\n            }\n        }\n\n        return [\n            "schemaVersion": 1, "savedAt": Date().timeIntervalSince1970,\n            "url": url, "position": position, "desiredPlaying": desiredPlaying,\n            "track": metadata(currentTrack), "upcoming": queue(upcoming),\n            "previous": queue(previous), "session": session, "generation": generation\n        ]\n    }\n\n    /// Restore only after the new Web runtime has supplied its current session/generation.\n    /// The caller explicitly decides whether a previously-playing item may resume.\n    @discardableResult\n    public func restorePlaybackPersistenceSnapshot(\n        _ snapshot: [String: Any], session newSession: String, generation newGeneration: Int,\n        resumePlayback: Bool\n    ) -> Bool {\n        dispatchPrecondition(condition: .onQueue(.main))\n        guard !newSession.isEmpty, newSession.count <= 256, newGeneration >= 0,\n              let rawURL = snapshot["url"] as? String,\n              let url = URL(string: rawURL), isAllowedMediaURL(url),\n              let position = finiteNonNegative(snapshot["position"]),\n              let track = snapshot["track"] as? [String: Any] else { return false }\n        let wantsPlayback = (snapshot["desiredPlaying"] as? Bool) == true\n        self.session = newSession\n        self.generation = newGeneration\n        load([\n            "url": url.absoluteString, "position": position,\n            "autoplay": resumePlayback && wantsPlayback, "track": track,\n            "upcoming": snapshot["upcoming"] as? [[String: Any]] ?? [],\n            "previous": snapshot["previous"] as? [[String: Any]] ?? [],\n            "session": newSession, "generation": newGeneration\n        ])\n        return currentURL == url\n    }\n}\n
+
+// MARK: - Persisted playback recovery
+
+extension FoliaAVPlayerEngine {
+    /// A bounded metadata/queue snapshot for the host's protected app-container store.
+    /// Signed URLs may be rejected by FoliaPlaybackSnapshotStore's URL policy.
+    public func makePlaybackPersistenceSnapshot() -> [String: Any]? {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard let url = currentURL?.absoluteString, !session.isEmpty, generation >= 0 else { return nil }
+        let rawPosition = player.currentTime().seconds
+        let position = rawPosition.isFinite && rawPosition >= 0 ? rawPosition : 0
+
+        func metadata(_ track: [String: Any]) -> [String: Any] {
+            var result: [String: Any] = [:]
+            for key in ["trackKey", "title", "name", "artist", "album"] {
+                if let value = track[key] as? String, value.count <= 2_048 { result[key] = value }
+            }
+            return result
+        }
+
+        func queue(_ tracks: [[String: Any]]) -> [[String: Any]] {
+            tracks.compactMap { track in
+                guard let raw = track["url"] as? String,
+                      let candidate = URL(string: raw), isAllowedMediaURL(candidate) else { return nil }
+                var value = metadata(track)
+                value["url"] = raw
+                return value
+            }
+        }
+
+        return [
+            "schemaVersion": 1, "savedAt": Date().timeIntervalSince1970,
+            "url": url, "position": position, "desiredPlaying": desiredPlaying,
+            "track": metadata(currentTrack), "upcoming": queue(upcoming),
+            "previous": queue(previous), "session": session, "generation": generation
+        ]
+    }
+
+    /// Restore only after the new Web runtime has supplied its current session/generation.
+    /// The caller explicitly decides whether a previously-playing item may resume.
+    @discardableResult
+    public func restorePlaybackPersistenceSnapshot(
+        _ snapshot: [String: Any], session newSession: String, generation newGeneration: Int,
+        resumePlayback: Bool
+    ) -> Bool {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard !newSession.isEmpty, newSession.count <= 256, newGeneration >= 0,
+              let rawURL = snapshot["url"] as? String,
+              let url = URL(string: rawURL), isAllowedMediaURL(url),
+              let position = finiteNonNegative(snapshot["position"]),
+              let track = snapshot["track"] as? [String: Any] else { return false }
+        let wantsPlayback = (snapshot["desiredPlaying"] as? Bool) == true
+        self.session = newSession
+        self.generation = newGeneration
+        load([
+            "url": url.absoluteString, "position": position,
+            "autoplay": resumePlayback && wantsPlayback, "track": track,
+            "upcoming": snapshot["upcoming"] as? [[String: Any]] ?? [],
+            "previous": snapshot["previous"] as? [[String: Any]] ?? [],
+            "session": newSession, "generation": newGeneration
+        ])
+        return currentURL == url
+    }
+}
