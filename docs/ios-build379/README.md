@@ -40,6 +40,18 @@ The IPA contains a compiled native executable and packaged web/runtime assets. I
 - Preserve upstream and dependency license notices. The source repository's license is AGPL-3.0; review dependency-specific terms and comply with applicable attribution and source-availability obligations.
 - The original IPA should remain immutable; modifications belong on this branch.
 
+## GitHub Actions analysis
+
+A workflow is available at `.github/workflows/ios-build379-analysis.yml`, with its scanner at `tools/ios-build379/analyze_payload.py`.
+
+The workflow accepts a direct HTTPS URL to the sanitized public payload ZIP and verifies its SHA-256 before extraction. It then inventories the web entry point, JS/CSS files, package manifests, renderer-related assets, largest files, and potentially sensitive paths. The Markdown report and JSON manifest are uploaded as a GitHub Actions artifact named `folia-ios-build379-analysis`.
+
+Expected sanitized archive:
+- File: `Folia-iOS-3.0.6-build379-public-clean.zip`
+- SHA-256: `7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef`
+
+The ZIP must first be placed at a stable HTTPS download location (for example, as a GitHub Release asset). The workflow does not accept the original IPA because it contains signing/authentication-related material that should not be published. This analysis job is not an Xcode build and does not recreate the original Swift project.
+
 ## Import status
 
 The branch and baseline documentation exist. The complete IPA and extracted web resources have **not** been uploaded to this repository. A sanitized web payload archive was prepared locally: `Folia-iOS-3.0.6-build379-public-clean.zip` (43,202,482 bytes; SHA-256 `7a633cf4abe7c5d805700a0ab06cdda1b033c8d03e15556291b7acd106e13cef`). It contains the `public/` tree with the authentication-state directory removed. The connected GitHub operations available here do not expose a binary Git LFS or release-asset upload path, so the archive still needs to be uploaded through a binary-capable GitHub path. This is a prepared sanitized payload, not a completed repository import.
