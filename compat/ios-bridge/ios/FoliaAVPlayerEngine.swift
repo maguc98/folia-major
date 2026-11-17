@@ -379,3 +379,90 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         return number.boolValue
     }
 }
+
+
+ // MARK: - System media transport integration
+
+extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
+    public func playbackSnapshot() -> FoliaPlaybackSnapshot {
+        dispatchPrecondition(condition: .onQueue(.main))
+        let itemDuration = player.currentItem?.duration.seconds ?? 0
+        let duration = itemDuration.isFinite && itemDuration > 0 ? itemDuration : 0
+        let currentPosition = player.currentTime().seconds
+        let position = currentPosition.isFinite && currentPosition >= 0 ? currentPosition : 0
+
+        return FoliaPlaybackSnapshot(
+            title: currentTrack["title"] as? String ?? currentTrack["name"] as? String,
+            artist: currentTrack["artist"] as? String,
+            album: currentTrack["album"] as? String,
+            duration: duration,
+            elapsedTime: position,
+            isPlaying: player.rate > 0,
+            desiredPlaying: desiredPlaying
+        )
+    }
+
+    public func playbackPlayFromSystem() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        desiredPlaying = true
+        if endedForURL == currentURL?.absoluteString, !upcoming.isEmpty {
+            advanceIfPossible(reason: "remote-play-after-end")
+        } else {
+            player.play()
+        }
+        emitState()
+    }
+
+    public func playbackPauseFromSystem() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        desiredPlaying = false
+        player.pause()
+        emitState()
+    }
+
+    public func playbackSeekFromSystem(to seconds: Double) {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard seconds.isFinite, seconds >= 0 else { return }
+        seek(seconds)
+    }
+
+    public func playbackNextFromSystem() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard !upcoming.isEmpty else { return }
+        desiredPlaying = true
+        advanceIfPossible(reason: "remote-next")
+    }
+
+    public func playbackPreviousFromSystem() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        let position = player.currentTime().seconds
+        if position.isFinite && position > 3 {
+            seek(0)
+            return
+        }
+        guard let previousTrack = previous.popLast(),
+              let rawURL = previousTrack["url"] as? String,
+              let url = URL(string: rawURL),
+              isAllowedMediaURL(url) else { return }
+
+        if !currentTrack.isEmpty { upcoming.insert(currentTrack, at: 0) }
+        desiredPlaying = true
+        load([
+            "url": rawURL,
+            "position": 0,
+            "autoplay": true,
+            "track": previousTrack,
+            "upcoming": upcoming,
+            "previous": previous,
+            "session": session,
+            "generation": generation
+        ])
+        pendingFreshTrackEvent = true
+        emit([
+            "type": "auto-advanced",
+            "trackKey": previousTrack["trackKey"] as? String ?? rawURL,
+            "url": rawURL,
+            "position": 0
+        ])
+    }
+}
