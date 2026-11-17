@@ -149,6 +149,8 @@ Integration notes and the required host-retention wiring are documented in `docs
 
 **Verification boundary:** this Swift implementation has not been compiled with Xcode/iOS SDK or run on a device. It is an AVPlayer-backed scaffold, not a verified IPA replacement. The original Xcode project and Swift sources remain unavailable from the supplied IPA.
 
+The manual workflow now includes a macOS `swiftc -frontend -parse` job for both Swift scaffold files. This is syntax parsing only; it does not type-check or link against iOS frameworks. The workflow itself has not yet been dispatched.
+
 
 
 ## Apple Music native playback path
