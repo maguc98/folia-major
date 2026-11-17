@@ -189,6 +189,8 @@ public final class FoliaNativePlaybackHost {
         keeper.onApplicationLifecycleChanged = nil
         keeper.onAudioSessionError = nil
         router.uninstall()
+        engine.shutdownTransport()
+        try? keeper.deactivatePlaybackAudioSession()
         keeper.uninstall()
     }
 }
