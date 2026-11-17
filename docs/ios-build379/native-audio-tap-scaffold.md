@@ -46,3 +46,8 @@ The six numeric values are illustrative, not captured output. `compat/ios-bridge
 - The processing callback must remain lightweight. Device profiling is required to check allocations, buffer layout, CPU usage, thermal impact, and glitches at real sample rates.
 - Compare captured `audio` events against the original app for silence, sine sweeps, pink noise, speech, bass-heavy music, low-volume tracks, and route changes before calibrating UI thresholds.
 - The original analyzer's exact source, data flow, and runtime output were not recovered from the IPA. This scaffold must be compiled against the target iOS SDK and tested on devices before shipping.
+
+
+## Host wiring note
+
+The audio analyzer publishes through the same `window.__foliaNativePlayerEvent` callback as the player transport. The optional JS guard/adapter is available at `compat/ios-bridge/audio-event-adapter.js`; it is a validation utility for test/consumer code, not a rewrite of the immutable production Folia bundle. A host that uses the exact bundled page should verify its audio-event handling before assuming the new event names update every visualizer renderer.
