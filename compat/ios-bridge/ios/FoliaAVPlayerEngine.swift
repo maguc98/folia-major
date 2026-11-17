@@ -26,7 +26,17 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var volume: Float = 1
     private var pendingSeek: Double?
     private var endedForURL: String?
-    public override init() {
+    private let isAllowedMediaURL: (URL) -> Bool
+
+    public init(isAllowedMediaURL: @escaping (URL) -> Bool = { url in
+        guard let scheme = url.scheme?.lowercased() else { return false }
+        if scheme == "https" || scheme == "http" {
+            return url.host?.isEmpty == false && url.user == nil && url.password == nil
+        }
+        // Hosts may opt into app-sandbox file URLs after validating the resolved path.
+        return false
+    }) {
+        self.isAllowedMediaURL = isAllowedMediaURL
         super.init()
         player.automaticallyWaitsToMinimizeStalling = true
         player.volume = volume
@@ -121,8 +131,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private func load(_ command: [String: Any]) {
         guard let rawURL = command["url"] as? String,
               let url = URL(string: rawURL),
-              ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
-              url.host?.isEmpty == false,
+              isAllowedMediaURL(url),
               let position = finiteNonNegative(command["position"]) else { return }
 
         detachCurrentItemObservers()
@@ -146,7 +155,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         } else {
             player.pause()
         }
-        emit(["type": "state", "playing": player.rate > 0])
+        emitState()
     }
 
     private func syncUpcoming(_ command: [String: Any]) {
@@ -211,7 +220,14 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                 queue: .main
             ) { [weak self] time in
                 guard let self, time.seconds.isFinite, self.player.currentItem != nil else { return }
-                self.emit(["type": "time", "position": time.seconds])
+                let duration = self.player.currentItem?.duration.seconds ?? .nan
+                self.emit([
+                    "type": "time",
+                    "playing": self.player.rate > 0,
+                    "position": time.seconds,
+                    "duration": duration.isFinite && duration > 0 ? duration : 0,
+                    "sentAtMs": Date().timeIntervalSince1970 * 1000
+                ])
             }
         }
     }
@@ -230,8 +246,9 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private func handleEnded(url: String?) {
         guard let url, url == currentURL?.absoluteString, endedForURL != url else { return }
         endedForURL = url
-        emit(["type": "ended", "url": url])
-        if desiredPlaying { advanceIfPossible(reason: "ended") }
+        let canAdvance = desiredPlaying && !upcoming.isEmpty
+        emit(["type": "ended", "url": url, "autoAdvancePrepared": canAdvance])
+        if canAdvance { advanceIfPossible(reason: "ended") }
         else { emitState() }
     }
 
@@ -260,6 +277,12 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             "session": session,
             "generation": generation
         ])
+        emit([
+            "type": "auto-advanced",
+            "trackKey": next["trackKey"] as? String ?? rawURL,
+            "url": rawURL,
+            "position": 0
+        ])
     }
 
     // MARK: - Transport and event publication
@@ -275,7 +298,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     }
 
     private func emitState() {
-        emit(["type": "state", "playing": player.rate > 0])
+        emitState()
     }
 
     private func publishStatus() {
@@ -307,8 +330,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         return Array(entries.prefix(500)).filter { entry in
             guard let raw = entry["url"] as? String,
                   let url = URL(string: raw),
-                  ["https", "http"].contains(url.scheme?.lowercased() ?? ""),
-                  url.host?.isEmpty == false else { return false }
+                  isAllowedMediaURL(url) else { return false }
             return true
         }
     }
