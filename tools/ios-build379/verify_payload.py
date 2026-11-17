@@ -103,6 +103,8 @@ def main() -> int:
                 if ref.startswith(("http:", "https:", "data:", "//", "#", "javascript:")):
                     continue
                 relative = ref.split("?", 1)[0].split("#", 1)[0].lstrip("/")
+                while relative.startswith("./"):
+                    relative = relative[2:]
                 if relative and f"public/{relative}" not in names:
                     missing_refs.append(ref)
             if missing_refs:
