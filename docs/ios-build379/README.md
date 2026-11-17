@@ -141,6 +141,16 @@ A proposed state coordinator is now available at `compat/ios-bridge/player-state
 Eighteen deterministic tests are in `tests/player-state.test.js`. The `compat/ios-bridge/native-event-adapter.js` module maps the observed native `loaded`, `error`, `state`, and `ended` callbacks into the state model. Crucially, a native `state` callback changes actual transport state without overwriting the user's desired play intent; `time`, `audio`, and `auto-advanced` remain with their timeline/visualizer consumers rather than being treated as duplicate queue commands. The model also guards duplicate/late end notifications and prevents a late queue from auto-starting after an explicit pause; a later user `play` command can resume queue progression. The model uses an `endedForURL` guard, corresponding to a stored-property name visible in the original binary. The workflow runs all Node test files with `node --test tests/*.test.js`. Local verification on Node.js 22.16.0 completed **27/27 tests** (9 bridge-adapter tests and 18 state/event-adapter tests). These are unit tests for the new compatibility modules; they do not exercise the original IPA or iOS frameworks.
 
 
+## AVPlayer host engine scaffold
+
+A newly authored AVFoundation host implementation is now available at `compat/ios-bridge/ios/FoliaAVPlayerEngine.swift`. It owns an `AVPlayer`, observes the active `AVPlayerItem`, tears down item observers on replacement, handles the bridge transport commands, emits native state/time/end/error events, and supports immediate or late queue progression while respecting explicit pause intent.
+
+Integration notes and the required host-retention wiring are documented in `docs/ios-build379/avplayer-engine-scaffold.md`. The router and engine are weakly cross-referenced, so the host must strongly retain both. Provider requests deliberately return `provider-service-not-installed`; this engine does not implement MusicKit, Feiniu, NodeMobile, background audio configuration, Now Playing/remote commands, audio-tap analysis, or persisted WebView-reload recovery.
+
+**Verification boundary:** this Swift implementation has not been compiled with Xcode/iOS SDK or run on a device. It is an AVPlayer-backed scaffold, not a verified IPA replacement. The original Xcode project and Swift sources remain unavailable from the supplied IPA.
+
+
+
 ## Apple Music native playback path
 
 A separate static-analysis note documents the embedded MusicKit playback dispatcher, queue identity checks, asynchronous start cancellation, `prepareNext` tail reconciliation, storefront alignment, and status fields: `docs/ios-build379/apple-music-native-playback-bridge.md`. This path is distinct from web-side `appleMusicRequest` catalog operations and the AVPlayer-oriented `foliaPlayer` handler. The outer native dispatch envelope remains unverified.
