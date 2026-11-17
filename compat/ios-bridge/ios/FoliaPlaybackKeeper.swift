@@ -252,6 +252,7 @@ public final class FoliaPlaybackKeeper {
                       let context = notification.userInfo?[AVAudioSession.deactivationContextKey]
                         as? AVAudioSession.DeactivationContext else { return }
                 if context.source == .system {
+                    self.isAudioSessionActive = false
                     self.transport?.playbackInterruptionBegan()
                     self.refreshNowPlayingInfo()
                 }
@@ -315,20 +316,23 @@ public final class FoliaPlaybackKeeper {
 
                 switch type {
                 case .began:
+                    self.isAudioSessionActive = false
                     self.transport?.playbackInterruptionBegan()
                 case .ended:
                     let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
                     let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
-                    let shouldResume = options.contains(.shouldResume)
-                    if shouldResume {
+                    let systemAllowsResume = options.contains(.shouldResume)
+                    var sessionReactivated = false
+                    if systemAllowsResume {
                         do {
                             try audioSession.setActive(true)
                             self.isAudioSessionActive = true
+                            sessionReactivated = true
                         } catch {
                             self.onAudioSessionError?(error)
                         }
                     }
-                    self.transport?.playbackInterruptionEnded(shouldResume: shouldResume && self.isAudioSessionActive)
+                    self.transport?.playbackInterruptionEnded(shouldResume: systemAllowsResume && sessionReactivated)
                 @unknown default:
                     break
                 }
