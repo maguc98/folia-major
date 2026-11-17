@@ -35,6 +35,14 @@ jobs:
         run: |
           python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
 
+      - name: Set up Node.js for bridge adapter tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test bridge compatibility adapter
+        run: node --test tests/bridge-compat.test.js
+
       - name: Download sanitized payload
         env:
           ARTIFACT_URL: ${{ inputs.artifact_url }}
