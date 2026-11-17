@@ -11,7 +11,7 @@
 | SHA-256 | `f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32` |
 | 文件数 | 8,421 |
 | 解压总大小 | 103,639,746 bytes |
-| JavaScript 文件数（全树） | 4,939 |
+| JavaScript 文件数（全树） | 4,935 |
 | CSS 文件数（全树） | 13 |
 | package.json 数量 | 475 |
 
