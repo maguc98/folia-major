@@ -200,3 +200,10 @@ The IPA contains the NodeMobile framework binary and a compiled `NodeRunner.star
 ## Integrated host and Apple Music playback helper
 
 `compat/ios-bridge/ios/FoliaNativePlaybackHost.swift` owns and wires the AVPlayer engine, WebKit router, playback keeper, protected snapshot store, WebContent recovery coordinator, and optional provider callback. It also exposes methods for installing and sending commands to the separate MusicKit playback dispatcher. The dispatcher source must be supplied by the host from `compat/ios-bridge/apple-music-playback.js`. The original provider auth envelope, MusicKit authorization screen lifecycle and Feiniu account/backend service still require controlled host-side implementation and runtime comparison.
+
+
+## Apple Music catalog/account bridge
+
+The new `compat/ios-bridge/apple-music-provider.js` implements the extracted Apple Music provider operation set (catalog search/details, playlists/library, lyrics and the two explicit write operations). It is called by `FoliaAppleMusicProviderBridge.swift` through the provider envelope validated by `FoliaBridgeRouter`. `FoliaNativePlaybackHost.installAppleMusicServices(...)` installs the separate playback and provider scripts. The provider returns a stable SHA-256 pseudonymous account key, not a Music User Token. The `appleMusicClose` action remains unsupported because the original UI-close behavior was not recoverable.
+
+Validation tests are in `tests/apple-music-provider.test.js`. These tests use mocked MusicKit API responses; they do not verify real account authorization, subscriptions, storefront writes or Apple service entitlements.
