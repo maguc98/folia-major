@@ -29,6 +29,10 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var pendingFreshTrackEvent = false
     private let isAllowedMediaURL: (URL) -> Bool
 
+    /// Optional host callback, invoked on the main queue whenever a native player event is emitted.
+    /// A host can use it to keep Now Playing metadata synchronized without a second timer.
+    public var onPlaybackStateChanged: (() -> Void)?
+
     public init(isAllowedMediaURL: @escaping (URL) -> Bool = { url in
         guard let scheme = url.scheme?.lowercased() else { return false }
         if scheme == "https" || scheme == "http" {
@@ -340,6 +344,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         event["session"] = session
         event["generation"] = generation
         router?.emitPlayerEvent(event)
+        onPlaybackStateChanged?()
     }
 
     // MARK: - Input normalization
