@@ -99,4 +99,4 @@ Run the structural fixture tests:
 python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
 ```
 
-The fixtures are synthetic contract examples, not captured production traffic. Passing them validates message shape only; it does not emulate WebKit, AVPlayer, provider login, or the original Swift bridge.
+The fixtures are synthetic contract examples, not captured production traffic. The suite currently contains seven positive/negative structural cases and is also run by the manual analysis workflow. Passing them validates message shape only; it does not emulate WebKit, AVPlayer, provider login, or the original Swift bridge.
