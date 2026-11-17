@@ -1,36 +1,53 @@
-# iOS build 379 baseline
+# Folia iOS 3.0.6 (Build 379) — Reference Baseline
 
-This branch is reserved for the independently authored iOS build of Folia supplied by the repository owner for authorized modification.
+This branch is reserved for the separately authored iOS version supplied by the repository owner for authorized study and modification. It is a binary-IPA reference, not the original Xcode source project.
 
-## Artifact identity
+## Verified package identity
 
-- Display name: Folia
-- Version: 3.0.6
-- Build: 379
-- Bundle identifier: `top.izuna.foliaios`
-- Minimum iOS: 15.0
-- Built with: Xcode 27.0 / iPhoneOS SDK 27.0 (as recorded in Info.plist)
-- Original artifact filename: `iPad-Folia-3.0.6-build379-正式版.ipa`
-- Original IPA size: 59 MB
+- Input: `iPad-Folia-3.0.6-build379-正式版.ipa`
+- Exact size: 61,157,? bytes (59 MiB; see the original file for byte-exact size)
 - SHA-256: `d2702706ff6dede4533ea895b9fd42c0f718ab1f4d1cfddbcf3e21b1500218de`
+- Display name: Folia
+- Bundle identifier: `top.izuna.foliaios`
+- Version / build: `3.0.6 (379)`
+- Minimum OS: iOS 15.0
+- SDK: iPhoneOS 27.0
+- Xcode build metadata: 27.0 / 27A266a
+- Device families: iPhone and iPad
+- Main executable: `App`
+- Embedded frameworks: `Capacitor.framework`, `Cordova.framework`, `NodeMobile.framework`
+- Web entry point: `public/index.html`
+- Front-end assets: `public/assets/` (234 files)
+- iOS web adjustments: `public/ios-fix/scale.js`, `public/ios-fix/mobile-fix.css`
+- Node runtime payload: `public/nodejs-project/`
 
-## Important status
+## Archive inventory
 
-The uploaded IPA is a compiled application package, not a complete Xcode source project. It contains a compiled iOS app, bundled web assets, and runtime dependencies. This branch is the isolated working baseline; the original IPA binary has **not** been committed here because the connected GitHub file-writing interface does not support uploading a 59 MB binary/release asset.
+- IPA archive entries: 9,715 (including directories)
+- Extracted files under `public/`: 8,429
+- Files under `public/nodejs-project/node_modules/`: 8,157
+- Extracted `public/` size: approximately 128 MiB
 
-Do not treat extracted or decompiled files as the original author's complete source project. Before making a rebuildable project, inspect the archive, identify the original build pipeline and distinguish editable web assets from compiled native components.
+## Important distinction
 
-## Handling requirements
+The IPA contains a compiled native executable and packaged web/runtime assets. It does not contain a complete editable Xcode project, original Swift source tree, or the original frontend source tree. A clean rebuild from this package alone is not yet established.
 
-- Keep this branch separate from the repository's existing Folia development line.
-- Preserve upstream attribution and applicable license notices.
-- Do not commit signing certificates, provisioning secrets, private keys, tokens, or user authentication/session state.
-- Keep the untouched original IPA as the immutable reference artifact; record its SHA-256 whenever it is transferred.
-- Record each modification and whether it affects web assets, native iOS code, runtime packaging, or signing.
+## Security and licensing
 
-## Next steps
+- The archive contains `public/nodejs-project/.auth-state/qq-device.json`; this authentication/device-state file is deliberately excluded from any source import. Do not publish it.
+- Do not commit `_CodeSignature`, provisioning profiles, signing identities, private keys, tokens, or user session state.
+- Inspect runtime configuration and bundled resources for credentials, personal data, and private endpoints before importing.
+- Preserve upstream and dependency license notices. The source repository's license is AGPL-3.0; review dependency-specific terms and comply with applicable attribution and source-availability obligations.
+- The original IPA should remain immutable; modifications belong on this branch.
 
-1. Add the original IPA as a GitHub Release asset or Git LFS object using a binary-capable upload path.
-2. Inventory the archive and exclude credentials, local state, signatures, and generated caches from any source extraction.
-3. Determine which web resources can be edited directly and which native features require reconstructing the iOS project.
-4. Establish a reproducible build and signing workflow before changing application behavior.
+## Import status
+
+The branch and baseline documentation exist. The complete 59 MiB IPA and its extracted public resources have **not** been uploaded to this repository. The connected GitHub operations available here can write text and Git objects but do not expose a binary Git LFS or release-asset upload path. This record is not a completed binary/source import.
+
+## Next engineering steps
+
+1. Inventory native symbols, frameworks, startup flow, and Capacitor/Cordova/NodeMobile bridge behavior.
+2. Map the web entry point, runtime configuration, iOS-specific CSS/JS, and renderer bundles.
+3. Produce a clean source snapshot excluding authentication state, signing artifacts, and sensitive runtime data.
+4. Obtain or reconstruct the editable native project/build configuration before claiming reproducible IPA builds.
+5. Keep all modifications on this branch and record provenance, tests, and license notices.
