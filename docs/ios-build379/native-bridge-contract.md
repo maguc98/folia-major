@@ -122,6 +122,36 @@ The `appleMusicRequest` operation names are dynamically supplied by the provider
 - The web provider maps these calls to Feiniu API paths such as `/music/api/v1/search/track`, `/music/api/v1/lyric/list`, playlist and album listing paths.
 - The provider bundle explicitly marks `playback: false`; do not assume this provider's metadata/lyrics bridge also implements audio playback.
 
+
+### 3.4 Apple Music request operation names visible in the shipped provider bundle
+
+The `appleMusicRequest` wrapper is called by a shared paging helper, so not every operation appears as a direct literal at the call site. Tracing the helper's callers shows these read operations:
+
+- `search`
+- `catalogSong`
+- `catalogAlbum`
+- `catalogAlbumTracks`
+- `catalogArtist`
+- `catalogArtistSongs`
+- `catalogArtistAlbums`
+- `personalFm`
+- `playlists`
+- `playlistTracks`
+- `playlistTrackCount`
+- `librarySongs`
+- `libraryAlbums`
+- `libraryAlbumTracks`
+- `lyrics`
+
+The provider bundle also calls two write operations:
+
+- `likeSong`
+- `addPlaylistTracks`
+
+The native binary's embedded Apple Music request script contains validation and implementation branches for these operations. Examples include catalog IDs restricted to 1–40 decimal digits for catalog lookups, bounded page size/offset, playlist ID checks for add-to-playlist, and a maximum batch of 100 catalog IDs. The `personalFm` path performs a storefront lookup and then requests the next personal-station tracks.
+
+These are Apple Music catalog/library API operations passed as `operation` inside `appleMusicRequest`; they are separate from the MusicKit transport commands listed in section 6.
+
 ## 4. Relationship to NodeMobile
 
 The two WebKit handlers above are native message handlers. The NodeMobile HTTP server is a distinct local service layer with its own localhost ports and routes.
