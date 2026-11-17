@@ -163,3 +163,29 @@ A separate static-analysis note documents the embedded MusicKit playback dispatc
 The new `compat/ios-bridge/ios/FoliaPlaybackKeeper.swift` adds Now Playing metadata, remote transport commands, audio-session activation, interruption handling, route-change handling, and app background/foreground callbacks. `FoliaAVPlayerEngine.swift` implements the transport callbacks while keeping system interruption state separate from user playback intent. The current policy resumes only when the iOS interruption options request it and audio-session reactivation succeeds; disconnecting a headphone route pauses and clears playback intent to avoid unexpectedly switching audio to the speaker.
 
 Host wiring and limits are documented in `docs/ios-build379/playback-keeper-host-scaffold.md`. Additional device scenarios NP-16 through NP-19 are in `docs/ios-build379/native-player-runtime-test-plan.md`. These changes remain uncompiled against the iOS SDK and untested on a physical device; background audio still requires the correct Xcode target capability and app configuration.
+
+
+## Complete compatibility scaffold inventory
+
+The current branch now includes the following newly authored host-side building blocks:
+
+- `compat/ios-bridge/ios/FoliaAVPlayerEngine.swift`: AVPlayer transport, queue, native event, intent, audio-tap attachment, and playback snapshot export/restore.
+- `compat/ios-bridge/ios/NativeAudioTapAnalyzer.swift`: MTAudioProcessingTap / AVAudioMix based band-energy analyzer, with six output fields. Its filter implementation and normalization are approximations; the exact build-379 DSP is not recovered.
+- `compat/ios-bridge/ios/FoliaPlaybackKeeper.swift`: Now Playing, remote commands, iOS 27 audio-session lifecycle notifications, legacy interruption fallback, route changes, and media-services reset notifications.
+- `compat/ios-bridge/ios/FoliaPlaybackSnapshotStore.swift` and `FoliaWebContentRecoveryCoordinator.swift`: protected bounded snapshots and a WKWebView WebContent termination recovery hook.
+- `compat/ios-bridge/apple-music-playback.js` and `ios/FoliaAppleMusicPlaybackBridge.swift`: a separate MusicKit JavaScript playback dispatcher and new explicit host bridge. The original binary's outer dispatcher envelope is not fully recovered.
+- `FoliaAVPlayerEngine.onProviderRequest`: an injected host callback for validated Apple Music / Feiniu provider requests. Provider services and NodeMobile still need real host wiring.
+- `audio-event-adapter.js`, `tests/audio-event-adapter.test.js`, `tests/apple-music-playback.test.js`, and `schemas/native-audio-event.schema.json`: JS validation/tests and an audio event schema.
+- Lifecycle and analysis notes: `native-audio-tap-scaffold.md`, `web-content-recovery-scaffold.md`, `playback-keeper-host-scaffold.md`, and `native-player-runtime-test-plan.md`.
+
+## Remaining hard blockers before an installable IPA
+
+1. The supplied IPA does not contain the original editable Xcode project or the original Swift sources. A new native host target still needs to be created or recovered.
+2. NodeMobile framework linkage, copied Node project resources, startup/shutdown method implementation, and environment injection need the original or a new host target. The compiled binary exposes a `NodeRunner.start(projectDirectoryName:)` symbol, but its implementation is unavailable.
+3. Feiniu authentication and API services require the actual Node service, local port configuration, pairing/session policy and safe credential storage. The current bridge offers an injection point but does not claim those services exist.
+4. Apple Music playback has a separate JS adapter; the original outer Swift/JS dispatch and account behavior still need controlled runtime comparison.
+5. Background audio mode, app delegate wiring, code signing, provisioning, and a reproducible Xcode build remain host-project tasks.
+
+The GitHub Actions workflow runs on pushes and pull requests to `ios-build379-baseline`: a macOS Swift syntax parse and Ubuntu JavaScript/Python fixture tests. A syntax parse is not an iOS SDK type-check or app build. The manual archive-analysis job still requires a direct HTTPS URL for the sanitized v2 ZIP.
+
+**Current output is a substantial compatibility source scaffold, not a built or installable IPA.** No Xcode/iOS SDK build, physical-device validation, signing, or IPA export has been completed.
