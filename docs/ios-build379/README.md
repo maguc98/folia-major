@@ -156,3 +156,10 @@ The manual workflow now includes a macOS `swiftc -frontend -parse` job for both 
 ## Apple Music native playback path
 
 A separate static-analysis note documents the embedded MusicKit playback dispatcher, queue identity checks, asynchronous start cancellation, `prepareNext` tail reconciliation, storefront alignment, and status fields: `docs/ios-build379/apple-music-native-playback-bridge.md`. This path is distinct from web-side `appleMusicRequest` catalog operations and the AVPlayer-oriented `foliaPlayer` handler. The outer native dispatch envelope remains unverified.
+
+
+## Playback keeper and lifecycle integration
+
+The new `compat/ios-bridge/ios/FoliaPlaybackKeeper.swift` adds Now Playing metadata, remote transport commands, audio-session activation, interruption handling, route-change handling, and app background/foreground callbacks. `FoliaAVPlayerEngine.swift` implements the transport callbacks while keeping system interruption state separate from user playback intent. The current policy resumes only when the iOS interruption options request it and audio-session reactivation succeeds; disconnecting a headphone route pauses and clears playback intent to avoid unexpectedly switching audio to the speaker.
+
+Host wiring and limits are documented in `docs/ios-build379/playback-keeper-host-scaffold.md`. Additional device scenarios NP-16 through NP-19 are in `docs/ios-build379/native-player-runtime-test-plan.md`. These changes remain uncompiled against the iOS SDK and untested on a physical device; background audio still requires the correct Xcode target capability and app configuration.
