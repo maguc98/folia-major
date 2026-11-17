@@ -87,8 +87,7 @@ public final class NativeAudioTapAnalyzer {
                 let status = MTAudioProcessingTapGetSourceAudio(
                     tap, frameCount, bufferList, flagsOut, nil, frameCountOut
                 )
-                guard status == noErr,
-                      status == noErr else { return }
+                guard status == noErr else { return }
                 let storage = MTAudioProcessingTapGetStorage(tap)
                 let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
                 analyzer.process(bufferList, frameCount: Int(frameCountOut.pointee))
