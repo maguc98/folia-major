@@ -99,3 +99,11 @@ ios-build379/
 ## 7. 本轮结论
 
 目前已具备 build 379 的静态分析基线、清理后的 Web/NodeMobile 资源归档和自动分析 workflow。还不具备从仓库直接产出与原 IPA 等价的可签名 IPA 的条件。下一阶段应优先完成二进制资源归档入库，并向原作者取得原生工程；若原作者无法提供，再评估新 wrapper 方案。
+
+
+## Latest implementation progress
+
+- Added `tools/ios-build379/verify_payload.py` and integrated it into the Actions workflow before extraction/analysis.
+- Verified the current sanitized v2 ZIP locally: SHA-256 matched; ZIP CRC check passed; 8,421 files / 103,639,746 uncompressed bytes; no unsafe paths, symlink entries, or known authentication/signing paths; all 20 local references found in `public/index.html`; required Web and NodeMobile entry files present.
+- Added `scripts/replace-ios-web-payload.sh`, which validates the archive and replaces only the `public/` directory in an already-extracted `.app` bundle. Its replacement path was exercised against a temporary test app bundle and passed.
+- The replacement test is not an iOS install/run test. It deliberately leaves the native executable and frameworks unchanged and invalidates the original code signature; re-signing is mandatory.
