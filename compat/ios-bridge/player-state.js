@@ -62,7 +62,7 @@ function reducePlayerState(previousState, event) {
   }
 
   if (event.type === "load") {
-    if (!adopt(state, event) || !validTrack(event.track)) return state;
+    if (!validTrack(event.track) || !adopt(state, event)) return state;
     state.current = { ...event.track };
     state.upcoming = Array.isArray(event.upcoming) ? event.upcoming.filter(validTrack).map(t => ({ ...t })) : [];
     state.previous = Array.isArray(event.previous) ? event.previous.filter(validTrack).map(t => ({ ...t })) : [];
@@ -98,7 +98,7 @@ function reducePlayerState(previousState, event) {
       break;
     case "ended":
       if (state.upcoming.length) {
-        state.previous.push(state.current);
+        if (state.current) state.previous.push(state.current);
         state.current = state.upcoming.shift();
         state.transport = "loading";
         state.waitingForQueue = false;
