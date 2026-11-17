@@ -138,4 +138,9 @@ The executable also exposes stored-property names for the native player's curren
 
 A proposed state coordinator is now available at `compat/ios-bridge/player-state.js`. It keeps transport state, desired play intent, queue state, lifecycle state, and session/generation freshness as separate fields. It models immediate queue advancement and late-queue arrival after an ended item, and intentionally does not implement AVPlayer or automatic interruption resume.
 
-Eight deterministic tests are in `tests/player-state.test.js`. The workflow runs all Node test files with `node --test tests/*.test.js`. Local verification on Node.js 22 completed **17/17 tests** (9 bridge-adapter tests and 8 state-model tests). These are unit tests for the new compatibility modules; they do not exercise the original IPA or iOS frameworks.
+Ten deterministic tests are in `tests/player-state.test.js`. The workflow runs all Node test files with `node --test tests/*.test.js`. Local verification on Node.js 22 completed **19/19 tests** (9 bridge-adapter tests and 10 state-model tests). These are unit tests for the new compatibility modules; they do not exercise the original IPA or iOS frameworks.
+
+
+## Apple Music native playback path
+
+A separate static-analysis note documents the embedded MusicKit playback dispatcher, queue identity checks, asynchronous start cancellation, `prepareNext` tail reconciliation, storefront alignment, and status fields: `docs/ios-build379/apple-music-native-playback-bridge.md`. This path is distinct from web-side `appleMusicRequest` catalog operations and the AVPlayer-oriented `foliaPlayer` handler. The outer native dispatch envelope remains unverified.
