@@ -91,6 +91,21 @@ It also contains references to AVPlayer, WKScriptMessageHandler, MediaPlayer, an
 
 These are symbol/string-level observations only. They do not reveal the complete class implementations or prove every branch is active.
 
+## 3.1 Native class method evidence from Mach-O symbols
+
+The stripped app executable still exposes Swift symbol names for several methods. These names make the native responsibilities clearer, but they are not source code:
+
+| Class | Symbol-level methods observed | Supported interpretation |
+|---|---|---|
+| `FoliaNativePlayer` | `install(on:)`, `handleCommand`, `load(url:position:autoplay:track:queue:previous:)`, `pause(clearIntent:)`, `remoteNext`, `remotePrevious`, `emit`, `restorePersistedPlaybackIfNeeded` | Owns AVPlayer playback, queue/remote commands, state events and persisted playback recovery |
+| `FoliaPlaybackKeeper` | `install(on:)`, `setupNowPlayingCommands`, `updateNowPlayingInfo`, `beginKeepAliveIfPlaying`, `handleExternalAudioInterruption`, `prepareSessionAfterInterruption`, `handleRouteChange` | Coordinates lock-screen/Control Center metadata, remote controls, audio session and background keep-alive |
+| `FoliaMusicProviderBridge` | `installOnMainWebView`, `loginFnMusic`, `requestFnMusic`, `showAppleMusicLogin`, `performAppleMusicRequest`, `requestApplePlayback`, `pollApplePlayback`, `reply` | Handles provider auth/request traffic, including FnMusic and Apple Music |
+| `FoliaBackGuard` | `install(on:)`, `webViewWebContentProcessDidTerminate`, `coverTerminationReload`, `dismissTerminationSnapshot`, `disableGestures`, `startWatching` | Watches WKWebView lifecycle and presents/reloads around WebContent termination |
+| `FoliaMemoryProbe` | `start`, `handleWarning` | Samples/handles memory pressure warnings |
+| `QishuiOfficialLogin` | `startWatching`, `presentMfa`, `injectMfaScript`, `checkMfaResult`, `retryLoginPage`, `teardown` | Separate native login overlay and MFA/login-session handling for Qishui |
+
+The executable also contains `node_start` / `_node_start` symbols and the literal `nodejs-project/main.js`, consistent with the NodeMobile startup path described in [node-runtime-map.md](node-runtime-map.md).
+
 ## 4. iOS adaptation script provenance
 
 `public/ios-fix/scale.js` comments explicitly say the adaptation layer is injected by a local preview service / NAS gateway and does not modify upstream source. It contains viewport scaling, device-pixel-ratio capping, WebGL context limiting, and optional diagnostic harness code. Treat it as an injected deployment-side patch unless its provenance is independently confirmed.
