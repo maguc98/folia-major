@@ -44,6 +44,10 @@ jobs:
           curl --fail --location --retry 3 --retry-delay 2 "$ARTIFACT_URL" -o /tmp/folia-payload.zip
           echo "$EXPECTED_SHA256  /tmp/folia-payload.zip" | sha256sum --check -
 
+      - name: Verify sanitized payload integrity and safety
+        run: |
+          python3 tools/ios-build379/verify_payload.py /tmp/folia-payload.zip
+
       - name: Analyze archive and front-end resources
         run: |
           python3 tools/ios-build379/analyze_payload.py /tmp/folia-payload.zip --output analysis-output
