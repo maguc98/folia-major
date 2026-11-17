@@ -240,6 +240,9 @@ public final class FoliaBridgeRouter: NSObject {
                   !path.split(separator: "/").contains(where: { $0 == "." || $0 == ".." }),
                   let method = body["method"] as? String,
                   ["GET", "POST"].contains(method.uppercased()) else { return false }
+            if let params = body["params"], !(params is [String: Any]) { return false }
+            if let requestBody = body["body"],
+               !(requestBody is [String: Any]) && !(requestBody is [Any]) { return false }
         }
         return true
     }
