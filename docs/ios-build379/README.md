@@ -24,8 +24,8 @@ This branch is reserved for the separately authored iOS version supplied by the 
 ## Archive inventory
 
 - IPA archive entries: 9,715 (including directories)
-- Extracted files under `public/`: 8,429
-- Files under `public/nodejs-project/node_modules/`: 8,157
+- Files under sanitized v2 `public/` archive: 8,421
+- Files under sanitized v2 `public/nodejs-project/node_modules/`: 8,153
 - Extracted `public/` size: approximately 128 MiB
 
 ## Important distinction
