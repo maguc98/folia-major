@@ -53,4 +53,4 @@ Use `FoliaPlaybackKeeper.onApplicationLifecycleChanged` to save a snapshot when 
 
 ## Composition root
 
-`FoliaNativePlaybackHost.swift` owns this coordinator and the snapshot store. The host still must call `handleWebContentProcessTermination()` from its existing WKNavigationDelegate callback, wait for the reloaded page's bridge to publish a new session/generation, and then call `restoreAfterWebContentReady(...)`. The old page session is never reused.
+`FoliaNativePlaybackHost.swift` owns this coordinator and the snapshot store. The host still must call `handleWebContentProcessTermination()` from its existing WKNavigationDelegate callback, wait for the reloaded page to configure MusicKit and publish a new session/generation, then call `restoreAfterWebContentReadyAndReinstallServices(...)` when Apple Music scripts were installed. The old page session is never reused.
