@@ -37,9 +37,14 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 - The host must refresh Now Playing metadata as the current item and timeline change. This scaffold deliberately does not create a second periodic timer.
 - The remote next/previous controls are currently enabled at the command-center level; the transport safely no-ops when no queue entry exists. A future queue-capability callback can make this more precise.
 - No artwork loading, lyrics, MusicKit-specific Now Playing behavior, or original keep-alive logic is reproduced. Audio analysis and persisted playback recovery are now separate modules documented in `native-audio-tap-scaffold.md` and `web-content-recovery-scaffold.md`.
-- Media-services reset currently re-applies the `.playback` category; it does not yet recreate the AVPlayer or recover a player item after the reset.
+- Media-services reset re-applies the `.playback` category and asks the AVPlayer transport to rebuild a fresh AVPlayer/AVPlayerItem at the last position, preserving desired-play intent; this is a best-effort replacement policy that must be tested on hardware.
 - This is not a substitute for testing with a real iPhone, lock screen, wired/Bluetooth headphones, AirPlay route changes, calls, Siri, and background playback.
 
 ## Verification status
 
 The repository workflow's macOS job performs Swift syntax parsing only. It does not type-check against the iOS SDK, link, build an IPA, or validate runtime command behavior. Run an Xcode host-target build and device test matrix before shipping.
+
+
+## Integrated host
+
+`FoliaNativePlaybackHost.swift` provides a reference composition root. It retains the engine, router, keeper, recovery coordinator and snapshot store; wires the provider injection callback and Now Playing refresh callback; saves snapshots on background entry; and exposes explicit methods for WebContent termination/restore and the separate MusicKit playback dispatcher. The host app must still own the WKWebView and call the coordinator from its existing navigation delegate.
