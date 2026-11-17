@@ -26,6 +26,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var volume: Float = 1
     private var pendingSeek: Double?
     private var endedForURL: String?
+    private var pendingFreshTrackEvent = false
     private let isAllowedMediaURL: (URL) -> Bool
 
     public init(isAllowedMediaURL: @escaping (URL) -> Bool = { url in
@@ -75,7 +76,9 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             emitState()
         case "pause":
             // Explicit user intent is distinct from programmatic transport pauses.
-            if bool(command["userIntent"]) ?? true { desiredPlaying = false }
+            let userIntent = bool(command["userIntent"])
+            let releaseIntent = bool(command["releaseIntent"]) ?? false
+            if userIntent == true || releaseIntent || userIntent == nil { desiredPlaying = false }
             player.pause()
             emitState()
         case "seek":
@@ -182,7 +185,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                         self.seek(pending)
                     }
                     if self.desiredPlaying { self.player.play() }
-                    self.emit(["type": "loaded"])
+                    self.emit(["type": "loaded", "fresh": self.consumeFreshTrackFlag()])
                     self.emitState()
                 case .failed:
                     self.emit(["type": "error", "message": item.error?.localizedDescription ?? "item-failed"])
@@ -276,6 +279,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
             "session": session,
             "generation": generation
         ])
+        pendingFreshTrackEvent = true
         emit([
             "type": "auto-advanced",
             "trackKey": next["trackKey"] as? String ?? rawURL,
@@ -296,12 +300,19 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         }
     }
 
+    private func consumeFreshTrackFlag() -> Bool {
+        let value = pendingFreshTrackEvent
+        pendingFreshTrackEvent = false
+        return value
+    }
+
     private func emitState() {
         let position = player.currentTime().seconds
         var payload: [String: Any] = [
             "type": "state",
             "playing": player.rate > 0,
-            "sentAtMs": Date().timeIntervalSince1970 * 1000
+            "sentAtMs": Date().timeIntervalSince1970 * 1000,
+            "fresh": consumeFreshTrackFlag()
         ]
         if position.isFinite { payload["position"] = position }
         emit(payload)
