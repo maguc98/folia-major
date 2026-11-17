@@ -71,6 +71,7 @@ function reducePlayerState(previousState, event) {
     state.transport = "loading";
     state.desiredPlaying = event.autoplay === true;
     state.waitingForQueue = false;
+    state.endedForURL = null;
     state.lastError = null;
     return state;
   }
