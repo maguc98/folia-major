@@ -16,6 +16,7 @@ function createPlayerState(initial = {}) {
     previous: [],
     lifecycle: "foreground",
     waitingForQueue: false,
+    endedForURL: null,
     lastError: null
   };
 }
@@ -39,6 +40,7 @@ function adopt(state, event) {
     state.upcoming = [];
     state.previous = [];
     state.waitingForQueue = false;
+    state.endedForURL = null;
     state.lastError = null;
     return true;
   }
@@ -81,7 +83,14 @@ function reducePlayerState(previousState, event) {
       break;
     case "play":
       state.desiredPlaying = true;
-      if (state.current && state.transport !== "loading") state.transport = "playing";
+      if (state.waitingForQueue && state.upcoming.length) {
+        if (state.current) state.previous.push(state.current);
+        state.current = state.upcoming.shift();
+        state.transport = "loading";
+        state.waitingForQueue = false;
+      } else if (state.current && state.transport !== "loading" && state.transport !== "ended") {
+        state.transport = "playing";
+      }
       break;
     case "pause":
       state.desiredPlaying = false;
@@ -90,15 +99,22 @@ function reducePlayerState(previousState, event) {
     case "queue":
       state.upcoming = Array.isArray(event.upcoming) ? event.upcoming.filter(validTrack).map(t => ({ ...t })) : [];
       state.previous = Array.isArray(event.previous) ? event.previous.filter(validTrack).map(t => ({ ...t })) : state.previous;
-      if (state.waitingForQueue && state.upcoming.length) {
+      if (state.waitingForQueue && state.desiredPlaying && state.upcoming.length) {
+        if (state.current) state.previous.push(state.current);
         state.current = state.upcoming.shift();
         state.transport = "loading";
         state.waitingForQueue = false;
       }
       break;
-    case "ended":
-      if (state.upcoming.length) {
-        if (state.current) state.previous.push(state.current);
+    case "ended": {
+      if (!state.current) break;
+      const endedURL = typeof event.url === "string" ? event.url : state.current.url;
+      // Ignore late end notifications from a replaced item and duplicate notifications
+      // for the same URL. The original binary exposes an endedForURL state marker.
+      if (endedURL !== state.current.url || state.endedForURL === endedURL) break;
+      state.endedForURL = endedURL;
+      if (state.desiredPlaying && state.upcoming.length) {
+        state.previous.push(state.current);
         state.current = state.upcoming.shift();
         state.transport = "loading";
         state.waitingForQueue = false;
@@ -107,6 +123,7 @@ function reducePlayerState(previousState, event) {
         state.waitingForQueue = true;
       }
       break;
+    }
     case "failed":
       state.transport = "failed";
       state.lastError = typeof event.message === "string" ? event.message : "playback-failed";
@@ -131,6 +148,7 @@ function reducePlayerState(previousState, event) {
       state.upcoming = [];
       state.previous = [];
       state.waitingForQueue = false;
+      state.endedForURL = null;
       break;
     default:
       break;
