@@ -17,7 +17,8 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 3. Construct `FoliaPlaybackKeeper(transport: engine)` and call `keeper.install()` on the main queue.
 4. Install the router on the WebView.
 5. Set `engine.onPlaybackStateChanged = { [weak keeper] in keeper?.refreshNowPlayingInfo() }` after creating the keeper. This callback runs on the main queue whenever the engine emits state/time/track events, avoiding a separate timer. Clear the callback when tearing down the host.
-6. Call `activatePlaybackAudioSession()` when playback ownership begins. Call `deactivatePlaybackAudioSession()` only when playback is genuinely stopped and the host relinquishes the audio session.
+6. Optionally set `keeper.onApplicationLifecycleChanged` to persist/restore host snapshots on background/foreground transitions, and `keeper.onAudioSessionError` to record activation failures.
+7. Call `activatePlaybackAudioSession()` when playback ownership begins. Call `deactivatePlaybackAudioSession()` only when playback is genuinely stopped and the host relinquishes the audio session.
 
 ## Implemented
 
@@ -25,7 +26,9 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 - Play, pause, toggle, seek, next, and previous remote command handlers.
 - Previous-track behavior seeks to the start when current position is over three seconds; otherwise it loads the most recent previous queue entry.
 - The AVPlayer engine preserves explicit user intent for remote play/pause and uses its existing queue/event path for next/previous.
-- Audio-session interruption and route-change notifications trigger metadata refresh; they do not silently rewrite the user's desired-playing intent.
+- Audio-session interruption begin/end is routed to the engine. The engine preserves desired-playing intent during interruption and resumes only when iOS supplies the `shouldResume` option.
+- An output-device-disconnected route change pauses playback and clears desired-playing intent to avoid unexpectedly switching private headphone audio to the speaker. Other route changes preserve playback intent.
+- App background/foreground notifications are surfaced through `onApplicationLifecycleChanged`, allowing the host to persist snapshots or coordinate app-specific lifecycle work without embedding app-delegate policy in the player.
 - Audio session activation uses `.playback`; there is no silent audio loop or fabricated keep-alive.
 
 ## Host target requirements and limits
@@ -33,7 +36,7 @@ Create and strongly retain the engine, router, and keeper for the WebView/player
 - Enable the app target's Background Modes > Audio, AirPlay, and Picture in Picture as required by the product's actual use case. The entitlement/capability and `Info.plist` configuration are Xcode target settings and cannot be supplied by these standalone Swift files.
 - The host must refresh Now Playing metadata as the current item and timeline change. This scaffold deliberately does not create a second periodic timer.
 - The remote next/previous controls are currently enabled at the command-center level; the transport safely no-ops when no queue entry exists. A future queue-capability callback can make this more precise.
-- No artwork loading, lyrics, MusicKit-specific Now Playing behavior, audio tap, persisted playback recovery, or full interruption-resume policy is implemented.
+- No artwork loading, lyrics, MusicKit-specific Now Playing behavior, audio tap, or persisted playback recovery is implemented. The interruption policy here is intentionally conservative and still requires device verification against Folia build 379.
 - This is not a substitute for testing with a real iPhone, lock screen, wired/Bluetooth headphones, AirPlay route changes, calls, Siri, and background playback.
 
 ## Verification status
