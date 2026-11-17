@@ -114,3 +114,6 @@ ios-build379/
 A separate web-side adapter now exists under `compat/ios-bridge/`, with runtime validators, request/reply correlation, timeout and teardown cleanup, plus a nine-case Node test suite. A Swift `WKWebView` router scaffold is also present at `compat/ios-bridge/ios/FoliaBridgeRouter.swift`; it registers the two observed handler names, applies a host-supplied main-frame trust policy, bounds message size, validates envelopes, and forwards to a delegate.
 
 These files are new compatibility scaffolding, not recovered upstream source. The Swift router has not been compiled with Xcode or tested on iOS. It intentionally does not implement AVPlayer, MusicKit, Feiniu authentication, audio-session/background behavior or NodeMobile. The original native project remains the prerequisite for an equivalent rebuild.
+
+
+A further symbol-level reference was added at `docs/ios-build379/native-player-lifecycle-map.md`. It separates the native player, background/remote playback keeper, WebContent back guard and audio-tap analysis responsibilities. This narrows the implementation scope for a replacement wrapper but does not remove the missing-source blocker.
