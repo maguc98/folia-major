@@ -1,0 +1,223 @@
+import Foundation
+import AVFoundation
+import MediaPlayer
+
+/// A compact, main-thread snapshot used to publish lock-screen metadata.
+public struct FoliaPlaybackSnapshot {
+    public let title: String?
+    public let artist: String?
+    public let album: String?
+    public let duration: TimeInterval
+    public let elapsedTime: TimeInterval
+    public let isPlaying: Bool
+    public let desiredPlaying: Bool
+
+    public init(
+        title: String?,
+        artist: String?,
+        album: String?,
+        duration: TimeInterval,
+        elapsedTime: TimeInterval,
+        isPlaying: Bool,
+        desiredPlaying: Bool
+    ) {
+        self.title = title
+        self.artist = artist
+        self.album = album
+        self.duration = duration
+        self.elapsedTime = elapsedTime
+        self.isPlaying = isPlaying
+        self.desiredPlaying = desiredPlaying
+    }
+}
+
+/// The keeper talks to a transport protocol rather than owning an AVPlayer.
+/// Implementations must be called on the main queue.
+public protocol FoliaPlaybackTransport: AnyObject {
+    func playbackSnapshot() -> FoliaPlaybackSnapshot
+    func playbackPlayFromSystem()
+    func playbackPauseFromSystem()
+    func playbackSeekFromSystem(to seconds: Double)
+    func playbackNextFromSystem()
+    func playbackPreviousFromSystem()
+}
+
+/// Publishes Now Playing metadata and forwards hardware/Control Center commands.
+/// This class does not fake audio or create a silent keep-alive loop.
+public final class FoliaPlaybackKeeper {
+    private weak var transport: FoliaPlaybackTransport?
+    private let commandCenter: MPRemoteCommandCenter
+    private var commandTokens: [Any] = []
+    private var observers: [NSObjectProtocol] = []
+    private var isInstalled = false
+    private var isAudioSessionActive = false
+
+    public init(
+        transport: FoliaPlaybackTransport,
+        commandCenter: MPRemoteCommandCenter = .shared()
+    ) {
+        self.transport = transport
+        self.commandCenter = commandCenter
+    }
+
+    deinit {
+        for token in commandTokens { commandCenter.removeTarget(token) }
+        for observer in observers { NotificationCenter.default.removeObserver(observer) }
+    }
+
+    /// Install once after the host has created the transport.
+    public func install() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard !isInstalled else { return }
+        isInstalled = true
+        installRemoteCommands()
+        installAudioSessionObservers()
+        refreshNowPlayingInfo()
+    }
+
+    /// Call when track metadata, timeline, or transport state changes.
+    public func refreshNowPlayingInfo() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard let snapshot = transport?.playbackSnapshot() else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+
+        var info: [String: Any] = [
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: snapshot.elapsedTime,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyIsLiveStream: false
+        ]
+        if let title = snapshot.title, !title.isEmpty {
+            info[MPMediaItemPropertyTitle] = title
+        }
+        if let artist = snapshot.artist, !artist.isEmpty {
+            info[MPMediaItemPropertyArtist] = artist
+        }
+        if let album = snapshot.album, !album.isEmpty {
+            info[MPMediaItemPropertyAlbumTitle] = album
+        }
+        if snapshot.duration > 0 {
+            info[MPMediaItemPropertyPlaybackDuration] = snapshot.duration
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+        updateCommandAvailability(snapshot)
+    }
+
+    /// Activates the playback audio session. The app target still needs the
+    /// Audio, AirPlay, and Picture in Picture background mode where appropriate.
+    public func activatePlaybackAudioSession() throws {
+        dispatchPrecondition(condition: .onQueue(.main))
+        let audioSession = AVAudioSession.sharedInstance()
+        try audioSession.setCategory(.playback, mode: .default, options: [])
+        try audioSession.setActive(true)
+        isAudioSessionActive = true
+    }
+
+    /// Deactivate only when the host has actually stopped owning playback.
+    public func deactivatePlaybackAudioSession() throws {
+        dispatchPrecondition(condition: .onQueue(.main))
+        guard isAudioSessionActive else { return }
+        try AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        isAudioSessionActive = false
+    }
+
+    public func clearNowPlayingInfo() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+    }
+
+    private func installRemoteCommands() {
+        let play = commandCenter.playCommand
+        play.isEnabled = true
+        commandTokens.append(play.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.transport?.playbackPlayFromSystem()
+                self?.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+
+        let pause = commandCenter.pauseCommand
+        pause.isEnabled = true
+        commandTokens.append(pause.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.transport?.playbackPauseFromSystem()
+                self?.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+
+        let toggle = commandCenter.togglePlayPauseCommand
+        toggle.isEnabled = true
+        commandTokens.append(toggle.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self, let snapshot = self.transport?.playbackSnapshot() else { return }
+                if snapshot.isPlaying || snapshot.desiredPlaying {
+                    self.transport?.playbackPauseFromSystem()
+                } else {
+                    self.transport?.playbackPlayFromSystem()
+                }
+                self.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+
+        let next = commandCenter.nextTrackCommand
+        next.isEnabled = false
+        commandTokens.append(next.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.transport?.playbackNextFromSystem()
+                self?.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+
+        let previous = commandCenter.previousTrackCommand
+        previous.isEnabled = true
+        commandTokens.append(previous.addTarget { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.transport?.playbackPreviousFromSystem()
+                self?.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+
+        let position = commandCenter.changePlaybackPositionCommand
+        position.isEnabled = true
+        commandTokens.append(position.addTarget { [weak self] event in
+            guard let event = event as? MPChangePlaybackPositionCommandEvent else { return .commandFailed }
+            DispatchQueue.main.async {
+                self?.transport?.playbackSeekFromSystem(to: event.positionTime)
+                self?.refreshNowPlayingInfo()
+            }
+            return .success
+        })
+    }
+
+    private func updateCommandAvailability(_ snapshot: FoliaPlaybackSnapshot) {
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
+    }
+
+    private func installAudioSessionObservers() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            // AVPlayer/iOS own the actual interruption transition. Preserve the
+            // desired-playing intent and republish the latest observed state.
+            self?.refreshNowPlayingInfo()
+        })
+        observers.append(center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshNowPlayingInfo()
+        })
+    }
+}
