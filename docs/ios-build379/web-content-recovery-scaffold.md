@@ -49,3 +49,8 @@ Use `FoliaPlaybackKeeper.onApplicationLifecycleChanged` to save a snapshot when 
 - Restoring must use the newly created JS session and generation, not the previous page's identifiers.
 - The `resumePlayback` argument is explicit. A stale snapshot cannot override a later user pause unless the host incorrectly passes `true`.
 - The helper has not been built with Xcode or verified under actual WebContent process termination.
+
+
+## Composition root
+
+`FoliaNativePlaybackHost.swift` owns this coordinator and the snapshot store. The host still must call `handleWebContentProcessTermination()` from its existing WKNavigationDelegate callback, wait for the reloaded page's bridge to publish a new session/generation, and then call `restoreAfterWebContentReady(...)`. The old page session is never reused.
