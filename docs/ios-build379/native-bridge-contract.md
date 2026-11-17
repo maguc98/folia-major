@@ -248,7 +248,23 @@ Run the structural checks with:
 python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
 ```
 
-## 9. Source files examined
+## 9. Web-side compatibility adapter
+
+A dependency-free adapter is now provided under `compat/ios-bridge/`:
+
+- `bridge-contract.js` validates known player/provider request envelopes and reply shapes.
+- `bridge-client.js` provides injectable player/provider transports, stamps session/generation values, correlates provider replies by request ID, and cleans pending requests on timeout or WebView teardown.
+- `tests/bridge-compat.test.js` exercises the transport and validation behavior using Node's built-in test runner.
+
+The adapter is a web-side reference implementation only. It does not create or control WKWebView, AVPlayer, MusicKit, Feiniu authentication, or NodeMobile. Its allowlists must be checked against actual call sites before integrating; native code must repeat all validation independently. It is not a drop-in replacement for the original compiled web bundle.
+
+Run the tests with:
+
+```bash
+node --test tests/bridge-compat.test.js
+```
+
+## 10. Source files examined
 
 - `public/assets/main-D3qKLyAO.js`
 - `public/assets/bootstrap-FH45rHF5.js`
