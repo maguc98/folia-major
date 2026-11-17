@@ -206,4 +206,9 @@ The IPA contains the NodeMobile framework binary and a compiled `NodeRunner.star
 
 The new `compat/ios-bridge/apple-music-provider.js` implements the extracted Apple Music provider operation set (catalog search/details, playlists/library, lyrics and the two explicit write operations). It is called by `FoliaAppleMusicProviderBridge.swift` through the provider envelope validated by `FoliaBridgeRouter`. `FoliaNativePlaybackHost.installAppleMusicServices(...)` installs the separate playback and provider scripts. The provider returns a stable SHA-256 pseudonymous account key, not a Music User Token. The `appleMusicClose` action remains unsupported because the original UI-close behavior was not recoverable.
 
-Validation tests are in `tests/apple-music-provider.test.js`. These tests use mocked MusicKit API responses; they do not verify real account authorization, subscriptions, storefront writes or Apple service entitlements.
+Validation tests are in `tests/apple-music-provider.test.js` and `tests/apple-music-playback.test.js`. They use mocked MusicKit responses; they do not verify real account authorization, subscriptions, storefront writes or Apple service entitlements.
+
+
+## Verification scope after the latest compatibility work
+
+The Node suite now includes the bridge adapter, deterministic player state, native audio event validation, Apple Music playback dispatch and Apple Music catalog/account provider tests. It does not invoke AVFoundation, MediaToolbox, WebKit or NodeMobile. The Swift workflow step uses `swiftc -frontend -parse`, which checks syntax but does not type-check against the iOS SDK or build an app. Only a real host Xcode target and physical-device tests can close those gaps.
