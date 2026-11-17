@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import MediaPlayer
+import UIKit
 
 /// A compact, main-thread snapshot used to publish lock-screen metadata.
 public struct FoliaPlaybackSnapshot {
@@ -31,6 +32,11 @@ public struct FoliaPlaybackSnapshot {
     }
 }
 
+public enum FoliaApplicationLifecycleEvent {
+    case didEnterBackground
+    case willEnterForeground
+}
+
 /// The keeper talks to a transport protocol rather than owning an AVPlayer.
 /// Implementations must be called on the main queue.
 public protocol FoliaPlaybackTransport: AnyObject {
@@ -40,6 +46,9 @@ public protocol FoliaPlaybackTransport: AnyObject {
     func playbackSeekFromSystem(to seconds: Double)
     func playbackNextFromSystem()
     func playbackPreviousFromSystem()
+    func playbackInterruptionBegan()
+    func playbackInterruptionEnded(shouldResume: Bool)
+    func playbackRouteChanged(outputWasDisconnected: Bool)
 }
 
 /// Publishes Now Playing metadata and forwards hardware/Control Center commands.
@@ -51,6 +60,11 @@ public final class FoliaPlaybackKeeper {
     private var observers: [NSObjectProtocol] = []
     private var isInstalled = false
     private var isAudioSessionActive = false
+
+    /// Host hook for snapshot persistence or app-specific lifecycle coordination.
+    public var onApplicationLifecycleChanged: ((FoliaApplicationLifecycleEvent) -> Void)?
+    /// Host hook for audio-session activation failures during interruption recovery.
+    public var onAudioSessionError: ((Error) -> Void)?
 
     public init(
         transport: FoliaPlaybackTransport,
@@ -72,6 +86,7 @@ public final class FoliaPlaybackKeeper {
         isInstalled = true
         installRemoteCommands()
         installAudioSessionObservers()
+        installApplicationLifecycleObservers()
         refreshNowPlayingInfo()
     }
 
@@ -201,23 +216,69 @@ public final class FoliaPlaybackKeeper {
         commandCenter.changePlaybackPositionCommand.isEnabled = snapshot.duration > 0
     }
 
+    private func installApplicationLifecycleObservers() {
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onApplicationLifecycleChanged?(.didEnterBackground)
+            self?.refreshNowPlayingInfo()
+        })
+        observers.append(center.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.onApplicationLifecycleChanged?(.willEnterForeground)
+            self?.refreshNowPlayingInfo()
+        })
+    }
+
     private func installAudioSessionObservers() {
         let center = NotificationCenter.default
         observers.append(center.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: AVAudioSession.sharedInstance(),
             queue: .main
-        ) { [weak self] _ in
-            // AVPlayer/iOS own the actual interruption transition. Preserve the
-            // desired-playing intent and republish the latest observed state.
-            self?.refreshNowPlayingInfo()
+        ) { [weak self] notification in
+            guard let self,
+                  let userInfo = notification.userInfo,
+                  let rawType = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
+
+            switch type {
+            case .began:
+                self.transport?.playbackInterruptionBegan()
+            case .ended:
+                let rawOptions = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
+                let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                let shouldResume = options.contains(.shouldResume)
+                if shouldResume {
+                    do {
+                        try AVAudioSession.sharedInstance().setActive(true)
+                        self.isAudioSessionActive = true
+                    } catch {
+                        self.onAudioSessionError?(error)
+                    }
+                }
+                self.transport?.playbackInterruptionEnded(shouldResume: shouldResume)
+            @unknown default:
+                break
+            }
+            self.refreshNowPlayingInfo()
         })
         observers.append(center.addObserver(
             forName: AVAudioSession.routeChangeNotification,
             object: AVAudioSession.sharedInstance(),
             queue: .main
-        ) { [weak self] _ in
-            self?.refreshNowPlayingInfo()
+        ) { [weak self] notification in
+            guard let self,
+                  let rawReason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: rawReason) else { return }
+            self.transport?.playbackRouteChanged(outputWasDisconnected: reason == .oldDeviceUnavailable)
+            self.refreshNowPlayingInfo()
         })
     }
 }
