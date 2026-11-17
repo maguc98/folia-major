@@ -23,3 +23,8 @@ The JavaScript adapter does not create a WKWebView, AVPlayer, MusicKit session, 
 The adapter rejects unsupported Apple Music operation names, unsafe Feiniu API paths (including traversal, query/fragment, backslash and control characters), malformed reply envelopes, invalid request IDs/timeouts, and stale/duplicate replies. The native event adapter keeps native transport state separate from desired user intent and deliberately does not convert `auto-advanced` into another queue-advance command. The provider path check is defense in depth, not a security boundary. Native code must independently enforce action/path allowlists, origin/frame policy, payload size limits and credential-safe logging. The exact original native implementation is not available as editable Swift source in the supplied IPA. Neither Swift file has been compiled against an Xcode/iOS SDK or run on a device; both must be reviewed and integrated into a real host project. The host must strongly retain both the engine and router.
 
 Do not use this adapter as a drop-in replacement for the original Folia player bundle without testing its call sites and event ordering on a device.
+
+
+### iOS system media controls
+
+See `ios/FoliaPlaybackKeeper.swift` and `../../docs/ios-build379/playback-keeper-host-scaffold.md` for the separate Now Playing and remote-command integration scaffold.
