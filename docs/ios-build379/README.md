@@ -79,7 +79,7 @@ python3 tools/ios-build379/verify_payload.py /path/to/Folia-iOS-3.0.6-build379-p
 A guarded replacement helper is available at `scripts/replace-ios-web-payload.sh`. It replaces only the `public/` directory inside an already-extracted `.app` bundle after running the verifier:
 
 ```bash
-scripts/replace-ios-web-payload.sh /path/to/Payload/App.app /path/to/Folia-iOS-3.0.6-build379-public-sanitized-v2.zip
+bash scripts/replace-ios-web-payload.sh /path/to/Payload/App.app /path/to/Folia-iOS-3.0.6-build379-public-sanitized-v2.zip
 ```
 
 **Important:** replacing `public/` invalidates the original iOS code signature. The resulting app must be re-signed with an authorized signing identity before installation. This helper does not rebuild the native executable, restore missing Swift source, or produce an IPA.
