@@ -120,7 +120,7 @@ public final class FoliaBridgeRouter: NSObject {
             lock.unlock()
             guard shouldReply else { return }
 
-            guard let ok = payload["ok"] as? Bool else { return }
+            guard Self.isBoolean(payload["ok"]), let ok = payload["ok"] as? Bool else { return }
             if ok && !payload.keys.contains("data") { return }
             if !ok && !(payload["error"] is String) { return }
             let envelope: [String: Any] = ["id": requestID, "payload": payload]
@@ -167,7 +167,7 @@ public final class FoliaBridgeRouter: NSObject {
               let generation = finiteNumber(body["generation"]),
               generation.doubleValue >= 0,
               generation.doubleValue.rounded(.towardZero) == generation.doubleValue,
-              generation.doubleValue <= Double(Int64.max) else { return false }
+              generation.doubleValue <= 9_007_199_254_740_991 else { return false }
 
         let commands: Set<String> = ["load", "play", "pause", "seek", "volume", "muted", "status", "upcoming"]
         guard commands.contains(command) else { return false }
@@ -179,8 +179,12 @@ public final class FoliaBridgeRouter: NSObject {
                   let position = finiteNumber(body["position"]), position.doubleValue >= 0,
                   isBoolean(body["autoplay"]) else { return false }
             if let track = body["track"], !(track is [String: Any]) && !(track is NSNull) { return false }
-            if let upcoming = body["upcoming"], !(upcoming is [Any]) || (upcoming as? [Any])?.count ?? 501 > 500 { return false }
-            if let previous = body["previous"], !(previous is [Any]) || (previous as? [Any])?.count ?? 501 > 500 { return false }
+            if let rawUpcoming = body["upcoming"] {
+                guard let upcoming = rawUpcoming as? [Any], upcoming.count <= 500 else { return false }
+            }
+            if let rawPrevious = body["previous"] {
+                guard let previous = rawPrevious as? [Any], previous.count <= 500 else { return false }
+            }
 
         case "seek":
             guard let position = finiteNumber(body["position"]), position.doubleValue >= 0 else { return false }
