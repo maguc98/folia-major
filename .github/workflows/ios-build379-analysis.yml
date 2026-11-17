@@ -31,6 +31,10 @@ jobs:
         with:
           ref: ios-build379-baseline
 
+      - name: Run native bridge contract fixture tests
+        run: |
+          python3 -m unittest discover -s tests -p 'test_native_bridge_build379.py' -v
+
       - name: Download sanitized payload
         env:
           ARTIFACT_URL: ${{ inputs.artifact_url }}
