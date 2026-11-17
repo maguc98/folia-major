@@ -145,7 +145,7 @@ Eighteen deterministic tests are in `tests/player-state.test.js`. The `compat/io
 
 A newly authored AVFoundation host implementation is now available at `compat/ios-bridge/ios/FoliaAVPlayerEngine.swift`. It owns an `AVPlayer`, observes the active `AVPlayerItem`, tears down item observers on replacement, handles the bridge transport commands, emits native state/time/end/error events, and supports immediate or late queue progression while respecting explicit pause intent.
 
-Integration notes and the required host-retention wiring are documented in `docs/ios-build379/avplayer-engine-scaffold.md`. The router and engine are weakly cross-referenced, so the host must strongly retain both. Provider requests deliberately return `provider-service-not-installed`; this engine does not implement MusicKit, Feiniu, NodeMobile, background audio configuration, Now Playing/remote commands, audio-tap analysis, or persisted WebView-reload recovery.
+Integration notes and the required host-retention wiring are documented in `docs/ios-build379/avplayer-host-scaffold.md`. The router and engine are weakly cross-referenced, so the host must strongly retain both. Provider requests deliberately return `provider-service-not-installed`; this engine does not implement MusicKit, Feiniu, NodeMobile, background audio configuration, Now Playing/remote commands, audio-tap analysis, or persisted WebView-reload recovery.
 
 **Verification boundary:** this Swift implementation has not been compiled with Xcode/iOS SDK or run on a device. It is an AVPlayer-backed scaffold, not a verified IPA replacement. The original Xcode project and Swift sources remain unavailable from the supplied IPA.
 
