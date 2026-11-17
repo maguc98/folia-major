@@ -1,0 +1,331 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/maguc98/folia-major/blob/ios-build379-baseline/schemas/native-bridge-build379.schema.json",
+  "title": "Folia iOS build 379 WebKit bridge messages",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/playerRequest"
+    },
+    {
+      "$ref": "#/$defs/providerRequest"
+    },
+    {
+      "$ref": "#/$defs/providerReply"
+    }
+  ],
+  "$defs": {
+    "playerRequest": {
+      "type": "object",
+      "required": [
+        "cmd"
+      ],
+      "properties": {
+        "cmd": {
+          "enum": [
+            "load",
+            "play",
+            "pause",
+            "seek",
+            "volume",
+            "muted",
+            "status",
+            "upcoming",
+            "startup_prompts_seen"
+          ]
+        },
+        "session": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "integer"
+        },
+        "url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "position": {
+          "type": "number",
+          "minimum": 0
+        },
+        "autoplay": {
+          "type": "boolean"
+        },
+        "volume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "muted": {
+          "type": "boolean"
+        },
+        "userIntent": {
+          "type": "boolean"
+        },
+        "releaseIntent": {
+          "type": "boolean"
+        },
+        "currentTrackKey": {
+          "type": "string"
+        },
+        "track": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "upcoming": {
+          "type": "array"
+        },
+        "previous": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "load"
+              }
+            },
+            "required": [
+              "cmd"
+            ]
+          },
+          "then": {
+            "required": [
+              "url",
+              "position",
+              "autoplay"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "seek"
+              }
+            },
+            "required": [
+              "cmd"
+            ]
+          },
+          "then": {
+            "required": [
+              "position"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "volume"
+              }
+            },
+            "required": [
+              "cmd"
+            ]
+          },
+          "then": {
+            "required": [
+              "volume"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "muted"
+              }
+            },
+            "required": [
+              "cmd"
+            ]
+          },
+          "then": {
+            "required": [
+              "muted"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "cmd": {
+                "const": "upcoming"
+              }
+            },
+            "required": [
+              "cmd"
+            ]
+          },
+          "then": {
+            "required": [
+              "currentTrackKey",
+              "track",
+              "upcoming",
+              "previous"
+            ]
+          }
+        }
+      ]
+    },
+    "providerRequest": {
+      "type": "object",
+      "required": [
+        "id",
+        "action"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "action": {
+          "enum": [
+            "appleMusicOpen",
+            "appleMusicClose",
+            "appleMusicLogout",
+            "appleMusicRequest",
+            "appleMusicStatus",
+            "fnmusicLogin",
+            "fnmusicLogout",
+            "fnmusicRequest",
+            "fnmusicStatus"
+          ]
+        },
+        "operation": {
+          "type": "string"
+        },
+        "params": {
+          "type": "object"
+        },
+        "path": {
+          "type": "string"
+        },
+        "method": {
+          "type": "string"
+        },
+        "body": {},
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "appleMusicRequest"
+              }
+            },
+            "required": [
+              "action"
+            ]
+          },
+          "then": {
+            "required": [
+              "operation",
+              "params"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "action": {
+                "const": "fnmusicRequest"
+              }
+            },
+            "required": [
+              "path",
+              "method"
+            ]
+          },
+          "then": {
+            "required": [
+              "path",
+              "method"
+            ]
+          }
+        }
+      ]
+    },
+    "providerReply": {
+      "type": "object",
+      "required": [
+        "id",
+        "payload"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "payload": {
+          "type": "object",
+          "required": [
+            "ok"
+          ],
+          "properties": {
+            "ok": {
+              "type": "boolean"
+            },
+            "data": {},
+            "error": {
+              "type": "string"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "ok": {
+                    "const": true
+                  }
+                },
+                "required": [
+                  "ok"
+                ]
+              },
+              "then": {
+                "required": [
+                  "data"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "ok": {
+                    "const": false
+                  }
+                },
+                "required": [
+                  "ok"
+                ]
+              },
+              "then": {
+                "required": [
+                  "error"
+                ]
+              }
+            }
+          ],
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}
