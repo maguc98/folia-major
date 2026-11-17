@@ -107,3 +107,10 @@ ios-build379/
 - Verified the current sanitized v2 ZIP locally: SHA-256 matched; ZIP CRC check passed; 8,421 files / 103,639,746 uncompressed bytes; no unsafe paths, symlink entries, or known authentication/signing paths; all 20 local references found in `public/index.html`; required Web and NodeMobile entry files present.
 - Added `scripts/replace-ios-web-payload.sh`, which validates the archive and replaces only the `public/` directory in an already-extracted `.app` bundle. Its replacement path was exercised against a temporary test app bundle and passed.
 - The replacement test is not an iOS install/run test. It deliberately leaves the native executable and frameworks unchanged and invalidates the original code signature; re-signing is mandatory.
+
+
+## Bridge compatibility implementation update
+
+A separate web-side adapter now exists under `compat/ios-bridge/`, with runtime validators, request/reply correlation, timeout and teardown cleanup, plus a nine-case Node test suite. A Swift `WKWebView` router scaffold is also present at `compat/ios-bridge/ios/FoliaBridgeRouter.swift`; it registers the two observed handler names, applies a host-supplied main-frame trust policy, bounds message size, validates envelopes, and forwards to a delegate.
+
+These files are new compatibility scaffolding, not recovered upstream source. The Swift router has not been compiled with Xcode or tested on iOS. It intentionally does not implement AVPlayer, MusicKit, Feiniu authentication, audio-session/background behavior or NodeMobile. The original native project remains the prerequisite for an equivalent rebuild.
