@@ -9,7 +9,7 @@ import CoreFoundation
 /// NodeMobile, background-audio entitlements and app lifecycle wiring remain host tasks.
 public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private weak var router: FoliaBridgeRouter?
-    private let player = AVPlayer()
+    private var player = AVPlayer()
     private var currentItemObservation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
     private var failedObserver: NSObjectProtocol?
@@ -457,7 +457,9 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
             duration: duration,
             elapsedTime: position,
             isPlaying: player.rate > 0,
-            desiredPlaying: desiredPlaying
+            desiredPlaying: desiredPlaying,
+            canGoNext: !upcoming.isEmpty,
+            canGoPrevious: !previous.isEmpty || position > 3
         )
     }
 
@@ -490,6 +492,37 @@ extension FoliaAVPlayerEngine: FoliaPlaybackTransport {
         guard !upcoming.isEmpty else { return }
         desiredPlaying = true
         advanceIfPossible(reason: "remote-next")
+    }
+
+    public func playbackMediaServicesWereReset() {
+        dispatchPrecondition(condition: .onQueue(.main))
+        let savedURL = currentURL
+        let rawPosition = player.currentTime().seconds
+        let position = rawPosition.isFinite && rawPosition >= 0 ? rawPosition : 0
+        let shouldResume = desiredPlaying
+        if let timeObserver {
+            player.removeTimeObserver(timeObserver)
+            self.timeObserver = nil
+        }
+        detachCurrentItemObservers()
+
+        let replacement = AVPlayer()
+        replacement.automaticallyWaitsToMinimizeStalling = true
+        replacement.volume = volume
+        replacement.isMuted = muted
+        player = replacement
+
+        guard let savedURL else {
+            replacement.pause()
+            emitState()
+            return
+        }
+        let item = AVPlayerItem(url: savedURL)
+        pendingSeek = position
+        replacement.replaceCurrentItem(with: item)
+        attachObservers(to: item)
+        if shouldResume { replacement.play() } else { replacement.pause() }
+        emitState()
     }
 
     public func playbackInterruptionBegan() {
