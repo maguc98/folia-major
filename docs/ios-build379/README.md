@@ -112,4 +112,4 @@ Run its Node.js tests:
 node --test tests/bridge-compat.test.js
 ```
 
-The current suite has 9 tests and passed locally under Node.js 22. The manual GitHub Actions workflow now runs this suite as well as the Python fixture tests. The adapter is not a native implementation and does not produce an IPA.
+The current suite has 9 tests and passed locally under Node.js 22. The manual GitHub Actions workflow now runs this suite as well as the Python fixture tests. A Swift WKWebView router scaffold is also provided at `compat/ios-bridge/ios/FoliaBridgeRouter.swift`; it registers the two handler names and forwards validated messages to a host delegate. It is new scaffolding, not recovered upstream code, and has not been compiled with Xcode or tested on iOS. The adapter/scaffold do not implement AVPlayer, MusicKit, Feiniu authentication or NodeMobile, and do not produce an IPA.
