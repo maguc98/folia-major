@@ -5,7 +5,7 @@ This branch is reserved for the separately authored iOS version supplied by the 
 ## Verified package identity
 
 - Input: `iPad-Folia-3.0.6-build379-正式版.ipa`
-- Exact size: 61,157,? bytes (59 MiB; see the original file for byte-exact size)
+- Exact size: 60,939,068 bytes (approximately 58.1 MiB; 59 MB decimal)
 - SHA-256: `d2702706ff6dede4533ea895b9fd42c0f718ab1f4d1cfddbcf3e21b1500218de`
 - Display name: Folia
 - Bundle identifier: `top.izuna.foliaios`
