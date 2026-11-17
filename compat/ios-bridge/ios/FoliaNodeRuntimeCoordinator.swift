@@ -112,6 +112,7 @@ public final class FoliaNodeRuntimeCoordinator {
             }
             state = .ready
         } catch {
+            driver.stop()
             state = .failed(String(describing: error).prefix(160).description)
             throw error
         }
