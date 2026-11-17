@@ -34,13 +34,12 @@ The `auto-advanced` event is emitted after the next AVPlayer item is installed, 
 
 ## Known gaps — do not claim full compatibility
 
-- No MusicKit native playback dispatcher or Apple Music login/session.
-- No Feiniu authentication or provider API implementation; provider requests return `provider-service-not-installed`.
+- The AVPlayer engine does not automatically own the separate MusicKit playback path. See `compat/ios-bridge/apple-music-playback.js` and `FoliaAppleMusicPlaybackBridge.swift`; its host envelope is new, not proven to match the original native envelope.
+- Feiniu authentication and provider APIs remain host-injected through `onProviderRequest`; no login or API service is fabricated.
 - No NodeMobile process or localhost services.
-- No AVAudioSession interruption/route-change handling.
-- No background audio mode/entitlement setup, Now Playing metadata, MPRemoteCommandCenter, or keep-alive keeper.
-- No audio-tap DSP / `audio` events for the visualizer.
-- No persisted playback snapshot or WebContent process termination/reload recovery.
+- AVAudioSession/Now Playing/remote command behavior is in the separate `FoliaPlaybackKeeper.swift` scaffold; the host must retain and wire it.
+- A new approximate MTAudioProcessingTap analyzer is in `NativeAudioTapAnalyzer.swift`; the exact original DSP is not recovered.
+- Snapshot storage and a WKWebContent termination coordinator are separate host helpers; the host must call them at the correct lifecycle points.
 - No delayed expected-URL auto-advance scheduler, preloaded next item, retry policy, or original failure semantics.
 - The queue model assumes playable entries contain direct media URLs. The original web queue can contain entries with a null URL; provider resolution is not recreated here.
 - The default URL policy intentionally excludes local files unless the host supplies a sandbox-aware allowlist.
