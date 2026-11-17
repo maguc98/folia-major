@@ -288,42 +288,7 @@
               "type": "string"
             }
           },
-          "allOf": [
-            {
-              "if": {
-                "properties": {
-                  "ok": {
-                    "const": true
-                  }
-                },
-                "required": [
-                  "ok"
-                ]
-              },
-              "then": {
-                "required": [
-                  "data"
-                ]
-              }
-            },
-            {
-              "if": {
-                "properties": {
-                  "ok": {
-                    "const": false
-                  }
-                },
-                "required": [
-                  "ok"
-                ]
-              },
-              "then": {
-                "required": [
-                  "error"
-                ]
-              }
-            }
-          ],
+          "allOf": [],
           "additionalProperties": true
         }
       },
@@ -332,9 +297,7 @@
     "playerEvent": {
       "type": "object",
       "required": [
-        "type",
-        "session",
-        "generation"
+        "type"
       ],
       "properties": {
         "type": {
