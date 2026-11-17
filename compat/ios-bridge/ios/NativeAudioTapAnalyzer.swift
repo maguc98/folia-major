@@ -74,12 +74,12 @@ public final class NativeAudioTapAnalyzer {
             },
             finalize: { _ in },
             prepare: { tap, _, processingFormat in
-                guard let storage = MTAudioProcessingTapGetStorage(tap) else { return }
+                let storage = MTAudioProcessingTapGetStorage(tap)
                 let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
                 analyzer.prepare(format: processingFormat.pointee)
             },
             unprepare: { tap in
-                guard let storage = MTAudioProcessingTapGetStorage(tap) else { return }
+                let storage = MTAudioProcessingTapGetStorage(tap)
                 let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
                 analyzer.reset()
             },
@@ -88,7 +88,8 @@ public final class NativeAudioTapAnalyzer {
                     tap, frameCount, bufferList, flagsOut, nil, frameCountOut
                 )
                 guard status == noErr,
-                      let storage = MTAudioProcessingTapGetStorage(tap) else { return }
+                      status == noErr else { return }
+                let storage = MTAudioProcessingTapGetStorage(tap)
                 let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
                 analyzer.process(bufferList, frameCount: Int(frameCountOut.pointee))
             }
