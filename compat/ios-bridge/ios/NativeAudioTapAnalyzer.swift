@@ -93,7 +93,7 @@ public final class NativeAudioTapAnalyzer {
             }
         )
 
-        var createdTap: Unmanaged<MTAudioProcessingTap>?
+        var createdTap: MTAudioProcessingTap?
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
@@ -109,7 +109,7 @@ public final class NativeAudioTapAnalyzer {
         }
 
         let parameters = AVMutableAudioMixInputParameters(track: track)
-        parameters.audioTapProcessor = createdTap.takeRetainedValue()
+        parameters.audioTapProcessor = createdTap
         let mix = AVMutableAudioMix()
         mix.inputParameters = [parameters]
         return mix
