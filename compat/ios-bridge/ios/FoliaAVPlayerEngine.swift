@@ -29,6 +29,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     private var pendingFreshTrackEvent = false
     private var interruptedBySystem = false
     private let isAllowedMediaURL: (URL) -> Bool
+    private let audioAnalyzer = NativeAudioTapAnalyzer()
 
     /// Optional host callback, invoked on the main queue whenever a native player event is emitted.
     /// A host can use it to keep Now Playing metadata synchronized without a second timer.
@@ -47,6 +48,12 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         player.automaticallyWaitsToMinimizeStalling = true
         player.volume = volume
         player.isMuted = muted
+        audioAnalyzer.onBands = { [weak self] bands in
+            guard let self, !self.session.isEmpty else { return }
+            var payload: [String: Any] = ["type": "audio"]
+            for (key, value) in bands.payload { payload[key] = value }
+            self.emit(payload)
+        }
     }
 
     /// Call after constructing FoliaBridgeRouter(delegate: engine).
@@ -185,6 +192,7 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
                 guard let self, let item, self.player.currentItem === item else { return }
                 switch item.status {
                 case .readyToPlay:
+                    self.attachAudioAnalysis(to: item)
                     if let pending = self.pendingSeek {
                         self.pendingSeek = nil
                         self.seek(pending)
@@ -241,7 +249,32 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
         }
     }
 
+    private func attachAudioAnalysis(to item: AVPlayerItem) {
+        let asset = item.asset
+        Task { [weak self, weak item] in
+            do {
+                let tracks = try await asset.loadTracks(withMediaType: .audio)
+                guard let audioTrack = tracks.first else { return }
+                await MainActor.run {
+                    guard let self, let item, self.player.currentItem === item, item.audioMix == nil else { return }
+                    do {
+                        item.audioMix = try self.audioAnalyzer.makeAudioMix(for: audioTrack)
+                    } catch {
+                        self.emit(["type": "error", "message": "audio-analysis-unavailable"])
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    guard let self, let item, self.player.currentItem === item else { return }
+                    self.emit(["type": "error", "message": "audio-analysis-track-unavailable"])
+                }
+            }
+        }
+    }
+
     private func detachCurrentItemObservers() {
+        player.currentItem?.audioMix = nil
+        audioAnalyzer.reset()
         currentItemObservation?.invalidate()
         currentItemObservation = nil
         for token in [endObserver, failedObserver, stalledObserver].compactMap({ $0 }) {
