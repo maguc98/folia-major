@@ -153,7 +153,11 @@ function createAppleMusicPlaybackDispatcher({
         if (!(await queueWork)) return { ok: false, error: "stale-request" };
         stage = "volume";
         if (windowRef.__foliaAppleEpoch !== epoch) return { ok: false, error: "stale-request" };
-        mk.volume = Math.max(0, Math.min(1, Number(p.volume) || 0));
+        const requestedVolume = p.volume === undefined
+          ? (Number.isFinite(mk.volume) ? mk.volume : 1)
+          : Number(p.volume);
+        if (!Number.isFinite(requestedVolume)) return { ok: false, error: "invalid-request" };
+        mk.volume = Math.max(0, Math.min(1, requestedVolume));
         stage = "play";
         try {
           await mk.play();
