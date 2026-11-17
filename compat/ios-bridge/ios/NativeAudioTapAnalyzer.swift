@@ -30,6 +30,11 @@ public struct FoliaAudioBands {
 /// The exact original DSP, sample scaling and smoothing constants are not
 /// recoverable from symbol names alone. Host code must test values on-device.
 public final class NativeAudioTapAnalyzer {
+    private final class TapCookie {
+        weak var analyzer: NativeAudioTapAnalyzer?
+        init(analyzer: NativeAudioTapAnalyzer) { self.analyzer = analyzer }
+    }
+
     private enum SampleKind {
         case float32
         case int16
@@ -68,33 +73,32 @@ public final class NativeAudioTapAnalyzer {
         reset()
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
-            clientInfo: Unmanaged.passUnretained(self).toOpaque(),
+            clientInfo: Unmanaged.passRetained(TapCookie(analyzer: self)).toOpaque(),
             init: { _, clientInfo, tapStorageOut in
                 tapStorageOut.pointee = clientInfo
             },
-            finalize: { _ in },
+            finalize: { tap in
+                Unmanaged<TapCookie>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).release()
+            },
             prepare: { tap, _, processingFormat in
-                let storage = MTAudioProcessingTapGetStorage(tap)
-                let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
-                analyzer.prepare(format: processingFormat.pointee)
+                let cookie = Unmanaged<TapCookie>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+                cookie.analyzer?.prepare(format: processingFormat.pointee)
             },
             unprepare: { tap in
-                let storage = MTAudioProcessingTapGetStorage(tap)
-                let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
-                analyzer.reset()
+                let cookie = Unmanaged<TapCookie>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+                cookie.analyzer?.reset()
             },
             process: { tap, frameCount, _, bufferList, frameCountOut, flagsOut in
                 let status = MTAudioProcessingTapGetSourceAudio(
                     tap, frameCount, bufferList, flagsOut, nil, frameCountOut
                 )
                 guard status == noErr else { return }
-                let storage = MTAudioProcessingTapGetStorage(tap)
-                let analyzer = Unmanaged<NativeAudioTapAnalyzer>.fromOpaque(storage).takeUnretainedValue()
-                analyzer.process(bufferList, frameCount: Int(frameCountOut.pointee))
+                let cookie = Unmanaged<TapCookie>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+                cookie.analyzer?.process(bufferList, frameCount: Int(frameCountOut.pointee))
             }
         )
 
-        var createdTap: MTAudioProcessingTap?
+        var createdTap: Unmanaged<MTAudioProcessingTap>?
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
@@ -109,12 +113,13 @@ public final class NativeAudioTapAnalyzer {
             )
         }
 
+        let tap = createdTap.takeRetainedValue()
         let parameters = AVMutableAudioMixInputParameters(track: track)
-        parameters.audioTapProcessor = createdTap
+        parameters.audioTapProcessor = tap
         let mix = AVMutableAudioMix()
         mix.inputParameters = [parameters]
         lock.lock()
-        activeTap = createdTap
+        activeTap = tap
         lock.unlock()
         return mix
     }
