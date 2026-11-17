@@ -125,3 +125,19 @@ These dimensions should not be collapsed into one boolean such as `isPlaying`.
 - Symbol names and printable strings do not reveal complete method bodies.
 - No AVPlayer/MusicKit runtime test was executed as part of this static analysis.
 - The compatibility router in this repository is a host integration scaffold, not a replacement for the original player implementation.
+
+
+## Executable compatibility model
+
+The repository now contains a proposed deterministic coordinator at `compat/ios-bridge/player-state.js`, with tests in `tests/player-state.test.js`. Its normalized track shape is `{ trackKey, url }`; this is an internal compatibility-model shape, not a claim about the original full track payload.
+
+The model keeps `transport`, `desiredPlaying`, `current/upcoming/previous`, `lifecycle`, `waitingForQueue`, and `session/generation` separate. It covers:
+- a user pause received while an item is loading, followed by readiness;
+- rejection of stale-generation events;
+- clearing prior state when a new session attaches;
+- immediate advancement when a next item is already queued;
+- waiting after end-of-item and advancement when a late queue arrives;
+- preserving the desired-playing flag for the host to interpret after the next item becomes ready;
+- failure state recording without changing session identity.
+
+This model intentionally does not call AVPlayer, schedule retries, decide interruption-resume policy, or claim to reproduce the original implementation. The eight tests passed locally under Node.js 22. The combined bridge and state-model suite reports 17/17 passing.
