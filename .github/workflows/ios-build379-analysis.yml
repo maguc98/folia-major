@@ -41,7 +41,7 @@ jobs:
           node-version: 22
 
       - name: Test bridge compatibility adapter
-        run: node --test tests/bridge-compat.test.js
+        run: node --test tests/*.test.js
 
       - name: Download sanitized payload
         env:
