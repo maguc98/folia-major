@@ -4,7 +4,7 @@ This directory contains a small, dependency-free CommonJS adapter for projects t
 
 - `bridge-contract.js`: validates known player and provider message envelopes.
 - `bridge-client.js`: injectable player/provider transports with session/generation stamping, request IDs, timeout cleanup and correlated replies.
-- `../../tests/bridge-compat.test.js`: Node built-in tests (11 local cases in the current working test run).
+- `../../tests/bridge-compat.test.js`: Node built-in tests (9 Node built-in test cases).
 
 Run:
 
