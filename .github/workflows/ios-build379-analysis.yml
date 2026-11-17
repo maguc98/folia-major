@@ -30,9 +30,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ios-build379-baseline
-      - name: Parse WKWebView router and AVPlayer engine
+      - name: Parse WKWebView router, AVPlayer engine, and playback keeper
         run: |
-          swiftc -frontend -parse compat/ios-bridge/ios/FoliaBridgeRouter.swift compat/ios-bridge/ios/FoliaAVPlayerEngine.swift
+          swiftc -frontend -parse compat/ios-bridge/ios/FoliaBridgeRouter.swift compat/ios-bridge/ios/FoliaAVPlayerEngine.swift compat/ios-bridge/ios/FoliaPlaybackKeeper.swift
 
   analyze:
     name: Inspect sanitized iOS payload
