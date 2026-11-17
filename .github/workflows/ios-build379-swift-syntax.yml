@@ -1,0 +1,38 @@
+name: Folia iOS Build 379 Swift Syntax Check
+
+on:
+  push:
+    branches: [ios-build379-baseline]
+  pull_request:
+    branches: [ios-build379-baseline]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: folia-ios-build379-swift-syntax
+  cancel-in-progress: false
+
+jobs:
+  swift-parse:
+    name: Parse Swift source (syntax only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Set up Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.2"
+      - name: Parse all native compatibility sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t swift_files < <(find compat/ios-bridge/ios -maxdepth 1 -name '*.swift' -print | sort)
+          test "${#swift_files[@]}" -gt 0
+          printf 'Parsing %s Swift files\n' "${#swift_files[@]}"
+          swiftc -frontend -parse "${swift_files[@]}"
