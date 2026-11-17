@@ -82,6 +82,12 @@ function reducePlayerState(previousState, event) {
     case "ready":
       if (state.current) state.transport = state.desiredPlaying ? "playing" : "paused";
       break;
+    case "transport-state":
+      // Reflect native transport reality without rewriting the user's desired intent.
+      if (state.current && typeof event.playing === "boolean") {
+        state.transport = event.playing ? "playing" : "paused";
+      }
+      break;
     case "play":
       state.desiredPlaying = true;
       if (state.waitingForQueue && state.upcoming.length) {
