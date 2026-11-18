@@ -80,7 +80,7 @@ public final class FoliaAppleMusicProviderBridge {
             "if (typeof window.__foliaAppleMusicProviderDispatch !== 'function') { throw new Error('provider-dispatcher-not-ready'); } return await window.__foliaAppleMusicProviderDispatch(request);",
             arguments: ["request": request],
             in: nil,
-            contentWorld: .page
+            in: .page
         ) { result in
             switch result {
             case .success(let value):
