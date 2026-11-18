@@ -34,7 +34,8 @@ final class FoliaNodeMobileRuntimeDriver: FoliaNodeRuntimeDriver {
             )
         }
 
-        let projectURL = resourceURL.appendingPathComponent(projectDirectoryName, isDirectory: true)
+        let publicURL = resourceURL.appendingPathComponent("public", isDirectory: true)
+        let projectURL = publicURL.appendingPathComponent(projectDirectoryName, isDirectory: true)
         let entryURL = projectURL.appendingPathComponent("main.js")
         guard FileManager.default.fileExists(atPath: entryURL.path) else {
             throw NSError(
