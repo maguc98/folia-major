@@ -2,6 +2,11 @@ name: Build Folia iOS IPA (eSign)
 
 on:
   workflow_dispatch:
+    inputs:
+      qq_api_base:
+        description: 'Persistent Node.js QQ Music API base URL (required for QQ Music login)'
+        required: false
+        type: string
   push:
     branches:
       - ios/esign-ipa
@@ -48,6 +53,7 @@ jobs:
       - name: Build Folia web assets for Capacitor
         env:
           FOLIA_BUILD_TARGET: capacitor
+          VITE_QQ_API_BASE: ${{ inputs.qq_api_base || vars.VITE_QQ_API_BASE || '' }}
         run: npm run build
 
       - name: Generate and sync iOS project
