@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "folia-qq-api-ios",
+  "main": "./worker/qq-api-only.ts",
+  "compatibility_date": "2026-04-02",
+  "workers_dev": true,
+  "durable_objects": {
+    "bindings": [
+      { "name": "QQ_QR_CHANNEL", "class_name": "QqQrChannel" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["QqQrChannel"] }
+  ]
+}
