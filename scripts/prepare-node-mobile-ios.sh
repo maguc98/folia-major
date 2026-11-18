@@ -28,7 +28,9 @@ if [[ -z "$SOURCE" || ! -f "$SOURCE/NodeMobile" || ! -f "$SOURCE/Info.plist" ]];
   exit 1
 fi
 
-if ! xcrun lipo -verify_arch arm64 "$SOURCE/NodeMobile"; then
+ARCHS="$(xcrun lipo -archs "$SOURCE/NodeMobile")"
+echo "NodeMobile architectures: $ARCHS"
+if [[ " $ARCHS " != *" arm64 "* ]]; then
   echo "::error::Selected NodeMobile.framework does not contain the arm64 device architecture."
   exit 1
 fi
@@ -40,4 +42,4 @@ ditto "$SOURCE" "$DEST"
 echo "Prepared device-only NodeMobile.framework:"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$DEST/Info.plist"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$DEST/Info.plist"
-xcrun lipo -info "$DEST/NodeMobile"
+xcrun lipo -archs "$DEST/NodeMobile"
