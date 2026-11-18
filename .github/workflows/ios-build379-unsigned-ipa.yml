@@ -1,6 +1,9 @@
 name: Build Folia iOS 3.0.6 (379) unsigned IPA
 
 on:
+  push:
+    branches:
+      - ios-build379-baseline
   workflow_dispatch:
     inputs:
       payload_url:
@@ -25,7 +28,7 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-379-retry]')
     name: Build reconstructed Folia app target
     # Retry hosted build on the alternate macOS 15 Intel pool.
-    runs-on: macos-15-intel
+    runs-on: macos-15-intel-intel
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -41,7 +44,7 @@ jobs:
 
       - name: Download and verify build-379 public payload
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url }}https://uc76829f5f5b42078f350a65b72e.dl.dropboxusercontent.com/cd/0/get/DMI4nRnWy-D_fFRvwEOOYs2MZ2tdL9IXDnULC6dR8JhYHj32RXCLnbzd2WCelHPzcJwUzGo8FCLSZUwx1G4SPvXQPhidHFBIb4GLK13RqoOZhweEiP8BT6LWCvfylM57CKiKwC_wDaQ0Fq7kPfhKyyJ19URtis7YU7Lex9pUc5RsMA/file?c_luid=1235e37c' }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc9cb7ba6fbd1a6760d6be4e7313.dl.dropboxusercontent.com/cd/0/get/DMJmllBdS80wdj_hzTgGYT9_fZjEBRfv4MsBtiqUxhud-wgdJYQ0yU-3Czw6VCaAiVEeeW02nPIu74A_NaqQPtzyGlwN2RO6fZVTF5IWe1kadWnjX3D-8g2xVcEdBRY4AA9OvC1oDQvsf5RE3G2ndJdhK09CFTstDx4XYkyYBkJezQ/file?c_luid=1235e37c' }}https://uc76829f5f5b42078f350a65b72e.dl.dropboxusercontent.com/cd/0/get/DMI4nRnWy-D_fFRvwEOOYs2MZ2tdL9IXDnULC6dR8JhYHj32RXCLnbzd2WCelHPzcJwUzGo8FCLSZUwx1G4SPvXQPhidHFBIb4GLK13RqoOZhweEiP8BT6LWCvfylM57CKiKwC_wDaQ0Fq7kPfhKyyJ19URtis7YU7Lex9pUc5RsMA/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
         run: |
           set -euo pipefail
