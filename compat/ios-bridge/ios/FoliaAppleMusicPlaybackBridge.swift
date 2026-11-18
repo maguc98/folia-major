@@ -49,7 +49,7 @@ public final class FoliaAppleMusicPlaybackBridge {
             "return await window.__foliaAppleMusicPlaybackDispatch({ id: id, operation: operation, params: params });",
             arguments: ["id": requestID, "operation": operation, "params": params],
             in: nil,
-            contentWorld: .page
+            in: .page
         ) { result in
             switch result {
             case .success(let value):
