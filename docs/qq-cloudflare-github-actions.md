@@ -1,8 +1,8 @@
 # Deploy the Folia QQ Music backend from the iOS build workflow
 
-The iOS build workflow can optionally deploy an isolated folia-qq-api-ios Worker in your own Cloudflare account, enable the QqQrChannel Durable Object, upload QQ_SESSION_SECRET, resolve the account's workers.dev subdomain, verify that both QQ and WeChat login channels are available, and then build the IPA with the generated API URL.
+The iOS build workflow can optionally deploy an isolated folia-qq-api-ios Worker in your own Cloudflare account, enable the QqQrChannel Durable Object, upload QQ_SESSION_SECRET, resolve the account's workers.dev subdomain, verify that both QQ and WeChat login channels are available, and build the IPA with the generated API URL.
 
-It does not modify main and never writes the QQ session key to repository files or build artifacts.
+Everything stays on the ios/esign-ipa branch. The workflow does not modify main and never writes the QQ session key to repository files or build artifacts.
 
 ## Add three GitHub Actions repository secrets
 
@@ -18,20 +18,23 @@ Generate QQ_SESSION_SECRET locally with: openssl rand -base64 32. Do not send th
 
 Create a Cloudflare API Token here: https://dash.cloudflare.com/profile/api-tokens. Your account must have a workers.dev subdomain enabled. The public Worker URL is generated automatically as folia-qq-api-ios.<your-subdomain>.workers.dev.
 
-## Run deployment and build
+## Enable automatic backend deployment
 
-After adding the three secrets, open the repository's Actions tab, select "Build Folia iOS IPA (eSign)", choose the ios/esign-ipa branch, and run the workflow.
+In the same GitHub Settings → Secrets and variables → Actions page, open the Variables tab and add this repository variable:
 
-In the workflow inputs:
-- Enable "Deploy the QQ API to your Cloudflare account before building".
-- Leave "External QQ Music API base URL" empty.
+| Variable name | Value |
+| --- | --- |
+| DEPLOY_QQ_API | true |
 
-The workflow will:
-1. Deploy the standalone QQ API Worker with the QqQrChannel Durable Object binding and migration.
-2. Store QQ_SESSION_SECRET as a Cloudflare Worker Secret.
-3. Resolve the public HTTPS API address automatically.
-4. Call the login-channels endpoint and verify that both qq and wechat are present.
-5. Build the iOS IPA with the verified endpoint injected as VITE_QQ_API_BASE.
+After the three secrets and this variable are saved, the next iOS workflow run on ios/esign-ipa will:
+1. Validate that all three secrets exist.
+2. Deploy the standalone QQ API Worker with the QqQrChannel Durable Object binding and migration.
+3. Store QQ_SESSION_SECRET as a Cloudflare Worker Secret and republish the Worker.
+4. Resolve the public HTTPS API address automatically.
+5. Verify that both qq and wechat login channels are present.
+6. Build the iOS IPA with the verified endpoint injected as VITE_QQ_API_BASE.
+
+The branch already has the workflow changes. After the secrets and variable are ready, the next push that triggers the iOS workflow will deploy the backend and build the IPA. You can ask me to trigger that build; do not send the secret values in chat.
 
 When the iOS workflow completes, download its Folia-iOS-unsigned artifact and sign it in eSign with your own certificate.
 
