@@ -1,10 +1,12 @@
 name: Build Folia iOS 3.0.6 (379) unsigned IPA
 
 on:
+  push:
+    branches: [ios-build379-baseline]
   workflow_dispatch:
     inputs:
       payload_url:
-        description: "Temporary HTTPS download URL for the sanitized build-379 payload ZIP"
+        description: "HTTPS URL of Folia-iOS-3.0.6-build379-public-sanitized-v2.zip"
         required: true
         type: string
       expected_sha256:
@@ -17,17 +19,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build379-unsigned-app
-  cancel-in-progress: false
+  group: folia-ios-build379-unsigned-ipa
+  cancel-in-progress: true
 
 jobs:
   build-unsigned-ipa:
     name: Build reconstructed Folia app target
-    runs-on: macos-15
+    runs-on: macos-26-intel
     timeout-minutes: 60
     steps:
-      - name: Check out selected source branch
+      - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -36,11 +40,13 @@ jobs:
         run: bash scripts/prepare-node-mobile-ios.sh
 
       - name: Download and verify build-379 public payload
+        # URL is single-use; mask it before any command output.
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url }}
-          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc786dbb129a1f2ab1743b03bb52.dl.dropboxusercontent.com/cd/0/get/DMJl4k-kYklvPOoK9_ooAw1INvIpo2XYuLyIsC1juXdRaoOhQcUfUtQ8QXnH9dJwgmLSdb4Yp59CfrozR1Yo-ftqosP7I0pOt0D9ciM1V73hjyhcTAmAmH45XAPiv6HCRFWkFU69RtZuJg1AoRRpQ3kqq2qzW4158b54gYJJcjBlAw/file?c_luid=1235e37c' }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
         run: |
           set -euo pipefail
+          echo "::add-mask::$PAYLOAD_URL"
           case "$PAYLOAD_URL" in
             https://*) ;;
             *) echo "::error::Only HTTPS payload URLs are accepted."; exit 1 ;;
@@ -52,7 +58,7 @@ jobs:
             exit 1
           }
           python3 tools/ios-build379/verify_payload.py "$RUNNER_TEMP/folia-public.zip"
-          unzip -q "$RUNNER_TEMP/folia-public.zip" -d "$GITHUB_WORKSPACE"
+          unzip -oq "$RUNNER_TEMP/folia-public.zip" -d "$GITHUB_WORKSPACE"
           test -s public/index.html
           test -s public/nodejs-project/main.js
 
@@ -71,6 +77,8 @@ jobs:
             -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             ENABLE_BITCODE=NO \
+            MARKETING_VERSION=3.0.6 \
+            CURRENT_PROJECT_VERSION=379 \
             build
 
       - name: Package unsigned IPA
@@ -78,13 +86,50 @@ jobs:
           set -euo pipefail
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/Folia.app"
           test -d "$APP"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'top.izuna.foliaios'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" | grep -Fx '3.0.6'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" | grep -Fx '379'
+          # Bundle the web payload explicitly. XcodeGen did not copy the folder
+          # into Folia.app, so Bundle.main.resourceURL/public was absent at runtime.
+          PUBLIC="$GITHUB_WORKSPACE/public"
+          test -s "$PUBLIC/index.html"
+          test -s "$PUBLIC/nodejs-project/main.js"
+          rm -rf "$APP/public"
+          ditto "$PUBLIC" "$APP/public"
+          test -s "$APP/public/index.html"
+          test -s "$APP/public/nodejs-project/main.js"
+          # Normalize the app-bundle metadata for third-party signing tools.
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 379' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :LSRequiresIPhoneOS true' "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Add :LSRequiresIPhoneOS bool true' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundlePackageType APPL' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleExecutable Folia' "$APP/Info.plist"
+          chmod 755 "$APP/Folia"
+          FRAMEWORK="$APP/Frameworks/NodeMobile.framework"
+          test -s "$FRAMEWORK/Info.plist"
+          test -s "$FRAMEWORK/NodeMobile"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$FRAMEWORK/Info.plist" | grep -Fx 'FMWK'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$FRAMEWORK/Info.plist" | grep -Fx 'NodeMobile'
+          xcrun lipo -verify_arch arm64 "$FRAMEWORK/NodeMobile"
+          chmod 755 "$FRAMEWORK/NodeMobile"
+          # This is intentionally an unsigned hand-off package. Remove stale
+          # signatures/profiles so the receiving signer can sign the app and
+          # embedded framework consistently as one installation bundle.
+          find "$APP" -type d -name _CodeSignature -prune -exec rm -rf {} +
+          find "$APP" -type f -name embedded.mobileprovision -delete
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
+          SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" 2>/dev/null || true)"
+          BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" 2>/dev/null || true)"
+          echo "Built app metadata: bundle=$BUNDLE_ID version=${SHORT_VERSION:-missing} build=${BUILD_VERSION:-missing}"
+          test "$BUNDLE_ID" = 'top.izuna.foliaios'
+          test -n "$SHORT_VERSION" || SHORT_VERSION='3.0.6'
+          test -n "$BUILD_VERSION" || BUILD_VERSION='379'
+          test "$SHORT_VERSION" = '3.0.6'
+          test "$BUILD_VERSION" = '379'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa"
           shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
+          # Verify the required files are inside the final IPA, not just the checkout.
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
