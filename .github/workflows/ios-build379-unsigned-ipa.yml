@@ -1,8 +1,6 @@
 name: Build Folia iOS 3.0.6 (379) unsigned IPA
 
 on:
-  push:
-    branches: [ios-build379-baseline]
   workflow_dispatch:
     inputs:
       payload_url:
@@ -24,7 +22,6 @@ concurrency:
 
 jobs:
   build-unsigned-ipa:
-    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-379-now]') }}
     name: Build reconstructed Folia app target
     runs-on: macos-15
     timeout-minutes: 60
@@ -42,8 +39,8 @@ jobs:
 
       - name: Download and verify build-379 public payload
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucbffe0cf9e7baa7325c611e9100.dl.dropboxusercontent.com/cd/0/get/DMIDH8YIWguGMxkmNZ6tqNNoHtNCRKERVpGzQnFi-q356NC7tWpy28rHAk8MA28iwyFK1OzTomYXM4nu8_BrUbislvqjl65stF_i6PlRGJBkxz5jlhXNhymVAE9h0uTkey-XiBzYY1wUTLxAgZrHMtrLCyFoHdUsKKe7uxWkN5RoLQ/file?c_luid=1235e37c' }}
-          EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
+          PAYLOAD_URL: ${{ inputs.payload_url }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
         run: |
           set -euo pipefail
           case "$PAYLOAD_URL" in
