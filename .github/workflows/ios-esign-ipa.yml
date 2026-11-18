@@ -52,6 +52,25 @@ jobs:
       - name: Install project dependencies
         run: npm ci
 
+      - name: Validate Cloudflare deployment secrets
+        if: ${{ inputs.deploy_qq_api }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          QQ_SESSION_SECRET: ${{ secrets.QQ_SESSION_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "$CLOUDFLARE_API_TOKEN" ]] || missing+=("CLOUDFLARE_API_TOKEN")
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
+          [[ -n "$QQ_SESSION_SECRET" ]] || missing+=("QQ_SESSION_SECRET")
+          if (( ${#missing[@]} )); then
+            printf '::error::Missing GitHub Actions repository secret: %s\\n' "${missing[@]}"
+            echo "Add the missing values under Settings → Secrets and variables → Actions, then rerun with Cloudflare deployment enabled."
+            exit 1
+          fi
+
       - name: Deploy Cloudflare QQ API with QQ QR Durable Object
         if: ${{ inputs.deploy_qq_api }}
         uses: cloudflare/wrangler-action@v4
