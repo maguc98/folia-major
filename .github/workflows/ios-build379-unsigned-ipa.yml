@@ -42,7 +42,7 @@ jobs:
       - name: Download and verify build-379 public payload
         # URL is single-use; mask it before any command output.
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucfc33103c7ba3f66ba1980192d0.dl.dropboxusercontent.com/cd/0/get/DMIoQRdHsXt27iGy1nEQTntJgvnqeq5ICAKj4LikkChngjM56lnznm6PdQnZIE5HfLkiMPTsqfJrATZl3FYGO7UJHdStNp_FrZFyid6BOrvArTHTXmUpZT994_SvMbKEOJpaAiNLtei8CVDV0eKEmsTt1K4j0_lWxkRZ_XbU7xohbA/file?c_luid=1235e37c' }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc786dbb129a1f2ab1743b03bb52.dl.dropboxusercontent.com/cd/0/get/DMJl4k-kYklvPOoK9_ooAw1INvIpo2XYuLyIsC1juXdRaoOhQcUfUtQ8QXnH9dJwgmLSdb4Yp59CfrozR1Yo-ftqosP7I0pOt0D9ciM1V73hjyhcTAmAmH45XAPiv6HCRFWkFU69RtZuJg1AoRRpQ3kqq2qzW4158b54gYJJcjBlAw/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
         run: |
           set -euo pipefail
@@ -86,6 +86,15 @@ jobs:
           set -euo pipefail
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/Folia.app"
           test -d "$APP"
+          # Bundle the web payload explicitly. XcodeGen did not copy the folder
+          # into Folia.app, so Bundle.main.resourceURL/public was absent at runtime.
+          PUBLIC="$GITHUB_WORKSPACE/public"
+          test -s "$PUBLIC/index.html"
+          test -s "$PUBLIC/nodejs-project/main.js"
+          rm -rf "$APP/public"
+          ditto "$PUBLIC" "$APP/public"
+          test -s "$APP/public/index.html"
+          test -s "$APP/public/nodejs-project/main.js"
           # Stamp the requested release metadata into the final app bundle.
           /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 379' "$APP/Info.plist"
@@ -102,6 +111,9 @@ jobs:
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa"
           shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
+          # Verify the required files are inside the final IPA, not just the checkout.
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
