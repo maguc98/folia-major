@@ -8,7 +8,7 @@
 - Entry point: `main.js`
 - Runtime assumed by the source: Node.js 18 inside NodeMobile.
 - Required packaged tree: the complete `public/nodejs-project/`, including `main.js`, `qishui-bridge.js`, `netease-fallback.js`, route/config JSON, login assets referenced by the server, and the entire `node_modules/` tree.
-- The original IPA contains `NodeMobile.framework` and a compiled `NodeRunner.start(projectDirectoryName:)` symbol, but no native Swift launcher source or framework headers. The exact call ABI, arguments, stdout/stderr wiring, lifecycle, and resource-copy phases cannot be proven from the IPA.
+- The original IPA contains `NodeMobile.framework` built with Node.js `v18.20.4`, plus the compiled app binary. The IPA does not contain the framework's public header or original native launcher source. The replacement host therefore uses the upstream documented `node_start(int argc, char* argv[])` entry point and must still be validated against the framework binary and on-device.
 
 ## Environment contract visible in main.js
 
@@ -56,7 +56,7 @@ Qishui stores its pairing token, device identifier and account session under a L
 
 ## Current implementation status
 
-The repository has static maps and JS/Swift playback/provider scaffolds, but this checkout still does not have a native NodeMobile launcher, a complete imported `nodejs-project/` tree, the framework's build headers, or the original Xcode target configuration. Therefore the three Node services cannot truthfully be marked as started or integrated in an installable IPA. The binary IPA alone is not enough to rebuild that layer.
+The repository now contains a reconstructed XcodeGen app target and `App/FoliaNodeMobileRuntimeDriver.swift`, which invokes the upstream documented NodeMobile C entry point on a 2 MiB background thread. The sanitized `public/nodejs-project/` archive is available in the working environment but is intentionally not committed to Git because it is a 40+ MB third-party dependency tree; the CI build accepts it as an HTTPS payload with a pinned SHA-256. The reconstructed app target is not the recovered original Xcode project, and its framework linkage and runtime startup still require macOS/Xcode and physical-device validation.
 
 
 ## Relationship to the native provider bridge
@@ -77,3 +77,10 @@ This does not provide the missing concrete NodeMobile driver. It is intentionall
 
 
 The latest coordinator stores logs and QQ auth-state files in the app's private Application Support directory (file-protected and excluded from backup), not the user-visible Documents directory.
+
+
+## Reconstructed NodeMobile launcher (2026-11-18)
+
+The original IPA has now been inspected directly. Its embedded NodeMobile binary contains the exact Node.js version marker `v18.20.4`; the app bundle also contains the full public Node project tree. A separate rebuilt app target now uses the upstream-documented C API `node_start(argc, argv)`, with arguments `node main.js`, a dedicated 2 MiB thread, and the `public/nodejs-project` bundle directory. It receives the existing `FOLIA_*` and `QQ_AUTH_STATE_PATH` environment variables from the coordinator.
+
+The upstream NodeMobile API supports one runtime instance and does not expose a supported stop/restart API. The concrete driver's `stop()` is therefore intentionally a no-op; a readiness timeout must not be interpreted as proof that Node has been terminated. The host app process owns the runtime lifetime.
