@@ -19,13 +19,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build379-${{ github.run_id }}
-  cancel-in-progress: false
+  group: folia-ios-build379-unsigned-ipa
+  cancel-in-progress: true
 
 jobs:
   build-unsigned-ipa:
     name: Build reconstructed Folia app target
-    runs-on: macos-15-intel
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - name: Check out source
