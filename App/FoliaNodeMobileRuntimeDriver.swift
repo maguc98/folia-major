@@ -64,13 +64,27 @@ final class FoliaNodeMobileRuntimeDriver: FoliaNodeRuntimeDriver {
                 return
             }
 
-            let arguments = ["node", "main.js"]
-            let argumentPointers: [UnsafeMutablePointer<CChar>] = arguments.map {
-                strdup($0)!
+            let encodedArguments = ["node", "main.js"].map { Array($0.utf8) }
+            let storageSize = encodedArguments.reduce(0) { $0 + $1.count + 1 }
+            guard let storage = calloc(storageSize, MemoryLayout<CChar>.stride) else {
+                NSLog("[Folia] NodeMobile could not allocate argv storage")
+                return
             }
-            defer { argumentPointers.forEach { free($0) } }
+            defer { free(storage) }
 
-            var argv: [UnsafeMutablePointer<CChar>?] = argumentPointers.map { Optional($0) }
+            // libuv requires argv strings to occupy one contiguous allocation.
+            let storageBase = storage.assumingMemoryBound(to: CChar.self)
+            var cursor = storageBase
+            var argv: [UnsafeMutablePointer<CChar>?] = []
+            for bytes in encodedArguments {
+                argv.append(cursor)
+                bytes.withUnsafeBufferPointer { source in
+                    if let baseAddress = source.baseAddress {
+                        memcpy(cursor, baseAddress, source.count)
+                    }
+                }
+                cursor = cursor.advanced(by: bytes.count + 1)
+            }
             argv.withUnsafeMutableBufferPointer { buffer in
                 guard let baseAddress = buffer.baseAddress else { return }
                 folia_node_start(Int32(buffer.count), baseAddress)
