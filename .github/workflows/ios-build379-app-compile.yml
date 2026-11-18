@@ -1,0 +1,63 @@
+name: Folia iOS Build 379 App Compile Check
+
+on:
+  push:
+    branches: [ios-build379-baseline]
+  pull_request:
+    branches: [ios-build379-baseline]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: folia-ios-build379-app-compile
+  cancel-in-progress: false
+
+jobs:
+  compile-ios-app:
+    name: Compile reconstructed iOS app target
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Prepare NodeMobile 18.20.4 framework
+        run: bash scripts/prepare-node-mobile-ios.sh
+
+      - name: Create compile-only resource fixture
+        run: |
+          set -euo pipefail
+          mkdir -p public/nodejs-project
+          cat > public/index.html <<'HTML'
+          <!doctype html><html><body>Folia build-379 compile fixture</body></html>
+          HTML
+          cat > public/nodejs-project/main.js <<'JS'
+          console.log("[folia-node] compile fixture only");
+          JS
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      - name: Compile for generic iOS device
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project Folia.xcodeproj \
+            -scheme Folia \
+            -configuration Debug \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            ENABLE_BITCODE=NO \
+            build
