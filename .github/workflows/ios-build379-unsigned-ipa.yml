@@ -1,6 +1,9 @@
 name: Build Folia iOS 3.0.6 (379) unsigned IPA
 
 on:
+  push:
+    branches:
+      - ios-build379-baseline
   workflow_dispatch:
     inputs:
       payload_url:
@@ -17,13 +20,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build379-unsigned-app
+  group: folia-ios-build379-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
   build-unsigned-ipa:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-379-retry]')
     name: Build reconstructed Folia app target
-    runs-on: macos-15
+    runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -39,7 +43,7 @@ jobs:
 
       - name: Download and verify build-379 public payload
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc76829f5f5b42078f350a65b72e.dl.dropboxusercontent.com/cd/0/get/DMI4nRnWy-D_fFRvwEOOYs2MZ2tdL9IXDnULC6dR8JhYHj32RXCLnbzd2WCelHPzcJwUzGo8FCLSZUwx1G4SPvXQPhidHFBIb4GLK13RqoOZhweEiP8BT6LWCvfylM57CKiKwC_wDaQ0Fq7kPfhKyyJ19URtis7YU7Lex9pUc5RsMA/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
         run: |
           set -euo pipefail
