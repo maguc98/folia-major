@@ -58,7 +58,7 @@ jobs:
             exit 1
           }
           python3 tools/ios-build379/verify_payload.py "$RUNNER_TEMP/folia-public.zip"
-          unzip -q "$RUNNER_TEMP/folia-public.zip" -d "$GITHUB_WORKSPACE"
+          unzip -oq "$RUNNER_TEMP/folia-public.zip" -d "$GITHUB_WORKSPACE"
           test -s public/index.html
           test -s public/nodejs-project/main.js
 
