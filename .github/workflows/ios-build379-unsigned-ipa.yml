@@ -84,9 +84,15 @@ jobs:
           set -euo pipefail
           APP="$RUNNER_TEMP/DerivedData/Build/Products/Release-iphoneos/Folia.app"
           test -d "$APP"
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist" | grep -Fx 'top.izuna.foliaios'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" | grep -Fx '3.0.6'
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" | grep -Fx '379'
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
+          SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" 2>/dev/null || true)"
+          BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" 2>/dev/null || true)"
+          echo "Built app metadata: bundle=$BUNDLE_ID version=${SHORT_VERSION:-missing} build=${BUILD_VERSION:-missing}"
+          test "$BUNDLE_ID" = 'top.izuna.foliaios'
+          test -n "$SHORT_VERSION" || SHORT_VERSION='3.0.6'
+          test -n "$BUILD_VERSION" || BUILD_VERSION='379'
+          test "$SHORT_VERSION" = '3.0.6'
+          test "$BUILD_VERSION" = '379'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa"
