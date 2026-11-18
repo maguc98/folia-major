@@ -279,30 +279,14 @@ public final class FoliaAVPlayerEngine: NSObject, FoliaBridgeRouterDelegate {
     }
 
     private func installMixedAudioTapBeforePlaybackIfSupported(on item: AVPlayerItem) {
-        guard #available(iOS 27.0, *), item.audioMix == nil else { return }
-        do {
-            item.audioMix = try audioAnalyzer.makeAudioMixForAllTracks()
-        } catch {
-            emit(["type": "error", "message": "audio-analysis-unavailable"])
-        }
+        // The all-tracks mix tap API is not exposed by the selected iOS 26.5 SDK.
+        // attachAudioAnalysis(to:) installs the supported per-track tap after asset loading.
     }
 
     private func attachAudioAnalysis(to item: AVPlayerItem, completion: @escaping () -> Void) {
         let identifier = ObjectIdentifier(item)
         guard audioPreparingItemID != identifier else { return }
         audioPreparingItemID = identifier
-
-        if #available(iOS 27.0, *) {
-            do {
-                if item.audioMix == nil {
-                    item.audioMix = try audioAnalyzer.makeAudioMixForAllTracks()
-                }
-            } catch {
-                emit(["type": "error", "message": "audio-analysis-unavailable"])
-            }
-            completion()
-            return
-        }
 
         let asset = item.asset
         Task { [weak self, weak item] in
