@@ -42,7 +42,7 @@ jobs:
       - name: Download and verify build-379 public payload
         # URL is single-use; mask it before any command output.
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucc9f4371ae7213efe2869d3cddd.dl.dropboxusercontent.com/cd/0/get/DMKxsXrSPnEBj6YgwtgaUDxGs1o3LmMpCdt0niEidc0EcrVPRG8KsoBSg0ULRiBfuNJGyAXt74oZll1ceU15mddTxNKliYJQPtFXKABWQlto5GhxwXIkwTvhoh1yO-w_-myhOlmA3GReQwCo1flqh2isNSFRyJ8dnJH_sEoRXjT26A/file?c_luid=1235e37c' }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucb0c2e8dcf362e15d0e21611cd3.dl.dropboxusercontent.com/cd/0/get/DMID4QKCrXGHeBAFoaS4hEKqQp0YQZm7TzDssnTHJqcz3OCeOiXEO8X0NM8mi6KfIE-SxfLbroecA7O2NpbByAg3zYx0469nnkSjAnYHbhDjTmsf8Okmd1xt8ltA_uoiomgAtTjDuXiV-RZYTefMhNo2w8Xatji4VF05JfQ3VdVJYQ/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
         run: |
           set -euo pipefail
