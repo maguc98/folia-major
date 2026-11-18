@@ -18,15 +18,11 @@ The Cloudflare Account ID is already configured in this repository's workflow as
 
 Your Cloudflare account must have a `workers.dev` subdomain enabled. The public Worker URL is generated automatically as `https://folia-qq-api-ios.<your-subdomain>.workers.dev`.
 
-## Enable automatic backend deployment
+## Automatic deployment
 
-In the same GitHub Settings → Secrets and variables → Actions page, open the **Variables** tab and add this repository variable:
+QQ API deployment is enabled by default on `ios/esign-ipa`. No repository variable is required. To deliberately disable Cloudflare deployment, set the repository variable `DEPLOY_QQ_API` to `false`.
 
-| Variable name | Value |
-| --- | --- |
-| `DEPLOY_QQ_API` | `true` |
-
-After the Cloudflare API Token and variable are saved, the next iOS workflow run on `ios/esign-ipa` will:
+After the Cloudflare API Token is saved, the next iOS workflow run on `ios/esign-ipa` will:
 
 1. Validate that the Cloudflare API Token is present.
 2. Deploy the standalone QQ API Worker with the `QqQrChannel` Durable Object binding and migration.
