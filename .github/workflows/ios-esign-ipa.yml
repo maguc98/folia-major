@@ -32,6 +32,9 @@ jobs:
   build-ios:
     name: Build unsigned iOS app
     runs-on: macos-15-intel
+    env:
+      # Account IDs identify an account; they are not authentication credentials.
+      CLOUDFLARE_ACCOUNT_ID: "e69714b233771b5e9578abb62b75daa1"
     timeout-minutes: 45
 
     steps:
@@ -51,18 +54,12 @@ jobs:
         if: ${{ vars.DEPLOY_QQ_API == 'true' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          QQ_SESSION_SECRET: ${{ secrets.QQ_SESSION_SECRET }}
         shell: bash
         run: |
           set -euo pipefail
-          missing=()
-          [[ -n "$CLOUDFLARE_API_TOKEN" ]] || missing+=("CLOUDFLARE_API_TOKEN")
-          [[ -n "$CLOUDFLARE_ACCOUNT_ID" ]] || missing+=("CLOUDFLARE_ACCOUNT_ID")
-          [[ -n "$QQ_SESSION_SECRET" ]] || missing+=("QQ_SESSION_SECRET")
-          if (( ${#missing[@]} )); then
-            printf '::error::Missing GitHub Actions repository secret: %s\\n' "${missing[@]}"
-            echo "Add the missing values under Settings → Secrets and variables → Actions, then rerun with Cloudflare deployment enabled."
+          if [[ -z "$CLOUDFLARE_API_TOKEN" ]]; then
+            echo "::error::Missing GitHub Actions repository secret: CLOUDFLARE_API_TOKEN"
+            echo "Add it under Settings → Secrets and variables → Actions, then rerun with Cloudflare deployment enabled."
             exit 1
           fi
 
@@ -75,25 +72,41 @@ jobs:
           wranglerVersion: "4"
           command: deploy --config wrangler.qq-api.jsonc
 
-      - name: Set QQ session secret and republish Worker
+      - name: Create persistent QQ session secret if missing
         if: ${{ vars.DEPLOY_QQ_API == 'true' }}
-        uses: cloudflare/wrangler-action@v4
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: "4"
-          command: deploy --config wrangler.qq-api.jsonc
-          secrets: |
-            QQ_SESSION_SECRET
         env:
-          QQ_SESSION_SECRET: ${{ secrets.QQ_SESSION_SECRET }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          endpoint="https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/folia-qq-api-ios/secrets"
+          existing="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "$endpoint")"
+
+          if jq -e '((.result // []) | any(.name == "QQ_SESSION_SECRET"))' <<< "$existing" >/dev/null; then
+            echo "QQ_SESSION_SECRET already exists; keeping the existing key."
+          else
+            echo "No QQ_SESSION_SECRET found. Creating a persistent random key in Cloudflare."
+            secret="$(openssl rand -hex 32)"
+            payload="$(jq -n --arg text "$secret" '{name:"QQ_SESSION_SECRET",type:"secret_text",text:$text}')"
+            unset secret
+            created="$(curl --fail --silent --show-error \
+              -X PUT \
+              -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data "$payload" \
+              "$endpoint")"
+            unset payload
+            jq -e '.success == true' <<< "$created" >/dev/null
+            echo "Persistent QQ_SESSION_SECRET created in Cloudflare Worker Secrets."
+          fi
 
       - name: Resolve and verify Cloudflare QQ API URL
         id: qq_api_endpoint
         if: ${{ vars.DEPLOY_QQ_API == 'true' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         shell: bash
         run: |
           set -euo pipefail
