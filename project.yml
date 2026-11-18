@@ -1,0 +1,50 @@
+name: Folia
+options:
+  bundleIdPrefix: top.izuna
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    IPHONEOS_DEPLOYMENT_TARGET: "15.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    ENABLE_BITCODE: NO
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  Folia:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: compat/ios-bridge/ios
+      - path: compat/ios-bridge/apple-music-playback.js
+        buildPhase: resources
+      - path: compat/ios-bridge/apple-music-provider.js
+        buildPhase: resources
+    resources:
+      - path: public
+        type: folder
+    info:
+      path: App/Info.plist
+    dependencies:
+      - framework: Frameworks/NodeMobile.framework
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: top.izuna.foliaios
+        PRODUCT_NAME: Folia
+        INFOPLIST_KEY_CFBundleName: Folia
+        GENERATE_INFOPLIST_FILE: NO
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(PROJECT_DIR)/Frameworks"
+        OTHER_LDFLAGS: "$(inherited) -framework NodeMobile"
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+schemes:
+  Folia:
+    build:
+      targets:
+        Folia: all
+    run:
+      config: Debug
+    archive:
+      config: Release
