@@ -51,7 +51,7 @@ jobs:
         run: npm ci
 
       - name: Validate Cloudflare deployment secrets
-        if: ${{ vars.DEPLOY_QQ_API == 'true' }}
+        if: ${{ vars.DEPLOY_QQ_API != 'false' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
@@ -64,7 +64,7 @@ jobs:
           fi
 
       - name: Create Cloudflare QQ API Worker and Durable Object
-        if: ${{ vars.DEPLOY_QQ_API == 'true' }}
+        if: ${{ vars.DEPLOY_QQ_API != 'false' }}
         uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -73,7 +73,7 @@ jobs:
           command: deploy --config wrangler.qq-api.jsonc
 
       - name: Create persistent QQ session secret if missing
-        if: ${{ vars.DEPLOY_QQ_API == 'true' }}
+        if: ${{ vars.DEPLOY_QQ_API != 'false' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
@@ -104,7 +104,7 @@ jobs:
 
       - name: Resolve and verify Cloudflare QQ API URL
         id: qq_api_endpoint
-        if: ${{ vars.DEPLOY_QQ_API == 'true' }}
+        if: ${{ vars.DEPLOY_QQ_API != 'false' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         shell: bash
