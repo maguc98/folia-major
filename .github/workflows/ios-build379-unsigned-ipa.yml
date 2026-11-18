@@ -27,8 +27,7 @@ jobs:
   build-unsigned-ipa:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-379-retry]')
     name: Build reconstructed Folia app target
-    # Retry hosted build on the alternate macOS 15 Intel pool.
-    runs-on: macos-15-intel-intel-intel
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -44,7 +43,7 @@ jobs:
 
       - name: Download and verify build-379 public payload
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc3ce8c6cfd890e958540b562cd8.dl.dropboxusercontent.com/cd/0/get/DMIrlcC4lTBQkmOZtlPVMVaynZ9XO_ivo87_pGBqExCqhImcgrDw5aK8BR6-VAb3Ev5sJYdR4qQ8kx5hko8TDrFjnLvjQG0-4z_87dOeFdOUQW1ceKkA3Z3WKboEf2JeTeLZ_KLpva2iDjmai1rQZyVTGWGRNG_Kj6wjn08EIKc7gQ/file?c_luid=1235e37c' }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uccad3a92cc4d0aaaa02a59114a2.dl.dropboxusercontent.com/cd/0/get/DMJxCdIny_v08HNzYUVqhoBTMWtqx1BmpGPdlnOrRmL2JZ_xaCcwXs7d1LhzULDHnLREWJMMWrTCPxAoFeNYKl8ErrtQClhWC7XOwsHAmUdUCy2yv96-LbWZTEnkx4GLVRVWJdZy-NDRTHjNGH8Py3n_6vcATWWerUIPp9RQCO9v1Q/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
         run: |
           set -euo pipefail
