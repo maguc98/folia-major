@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -t swift_files < <(find compat/ios-bridge/ios -maxdepth 1 -name '*.swift' -print | sort)
+          mapfile -t swift_files < <(find App compat/ios-bridge/ios -maxdepth 2 -name '*.swift' -print | sort)
           test "${#swift_files[@]}" -gt 0
           printf 'Parsing %s Swift files\n' "${#swift_files[@]}"
           swiftc -frontend -parse "${swift_files[@]}"
