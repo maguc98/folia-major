@@ -27,6 +27,7 @@ jobs:
   build-unsigned-ipa:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[build-379-retry]')
     name: Build reconstructed Folia app target
+    # Retry hosted build on the alternate macOS 15 Intel pool.
     runs-on: macos-15-intel
     timeout-minutes: 60
     steps:
