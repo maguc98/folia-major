@@ -95,9 +95,25 @@ jobs:
           ditto "$PUBLIC" "$APP/public"
           test -s "$APP/public/index.html"
           test -s "$APP/public/nodejs-project/main.js"
-          # Stamp the requested release metadata into the final app bundle.
+          # Normalize the app-bundle metadata for third-party signing tools.
           /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 379' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :LSRequiresIPhoneOS true' "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Add :LSRequiresIPhoneOS bool true' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundlePackageType APPL' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleExecutable Folia' "$APP/Info.plist"
+          chmod 755 "$APP/Folia"
+          FRAMEWORK="$APP/Frameworks/NodeMobile.framework"
+          test -s "$FRAMEWORK/Info.plist"
+          test -s "$FRAMEWORK/NodeMobile"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$FRAMEWORK/Info.plist" | grep -Fx 'FMWK'
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$FRAMEWORK/Info.plist" | grep -Fx 'NodeMobile'
+          xcrun lipo -verify_arch arm64 "$FRAMEWORK/NodeMobile"
+          chmod 755 "$FRAMEWORK/NodeMobile"
+          # This is intentionally an unsigned hand-off package. Remove stale
+          # signatures/profiles so the receiving signer can sign the app and
+          # embedded framework consistently as one installation bundle.
+          find "$APP" -type d -name _CodeSignature -prune -exec rm -rf {} +
+          find "$APP" -type f -name embedded.mobileprovision -delete
           BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
           SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" 2>/dev/null || true)"
           BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" 2>/dev/null || true)"
