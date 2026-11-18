@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       qq_api_base:
-        description: 'Persistent Node.js QQ Music API base URL (required for QQ Music login)'
+        description: 'External QQ Music API base URL (leave blank when deploying Cloudflare below)'
         required: false
         type: string
+      deploy_qq_api:
+        description: 'Deploy the QQ API to your Cloudflare account before building (requires repository secrets)'
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - ios/esign-ipa
@@ -47,13 +52,62 @@ jobs:
       - name: Install project dependencies
         run: npm ci
 
+      - name: Deploy Cloudflare QQ API with QQ QR Durable Object
+        if: ${{ inputs.deploy_qq_api }}
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          command: deploy --config wrangler.qq-api.jsonc
+          secrets: |
+            QQ_SESSION_SECRET
+        env:
+          QQ_SESSION_SECRET: ${{ secrets.QQ_SESSION_SECRET }}
+
+      - name: Resolve and verify Cloudflare QQ API URL
+        id: qq_api_endpoint
+        if: ${{ inputs.deploy_qq_api }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain")"
+          subdomain="$(jq -r '.result.subdomain // empty' <<< "$response")"
+          if [[ -z "$subdomain" ]]; then
+            echo "::error::This Cloudflare account has no workers.dev subdomain. Enable one in Workers & Pages, then rerun."
+            exit 1
+          fi
+
+          api_base="https://folia-qq-api-ios.${subdomain}.workers.dev/api/qq"
+          channels="$(curl --fail --silent --show-error --retry 8 --retry-delay 2 --retry-all-errors \
+            "$api_base/login/channels")"
+          if ! jq -e '((.data.channels // .channels // []) | index("qq")) != null and ((.data.channels // .channels // []) | index("wechat")) != null' <<< "$channels" >/dev/null; then
+            echo "::error::QQ API deployed, but both QQ and WeChat login channels were not confirmed."
+            echo "$channels"
+            exit 1
+          fi
+
+          echo "api_base=$api_base" >> "$GITHUB_OUTPUT"
+          {
+            echo "### QQ Music backend ready"
+            echo
+            echo "- API base: $api_base"
+            echo "- Login channels verified: QQ and WeChat"
+            echo "- The iOS build is using this endpoint."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Install temporary Capacitor toolchain
         run: npm install --no-save --no-package-lock @capacitor/core@8.4.2 @capacitor/ios@8.4.2 @capacitor/cli@8.4.2
 
       - name: Build Folia web assets for Capacitor
         env:
           FOLIA_BUILD_TARGET: capacitor
-          VITE_QQ_API_BASE: ${{ inputs.qq_api_base || vars.VITE_QQ_API_BASE || '' }}
+          VITE_QQ_API_BASE: ${{ steps.qq_api_endpoint.outputs.api_base || inputs.qq_api_base || vars.VITE_QQ_API_BASE || '' }}
         run: npm run build
 
       - name: Generate and sync iOS project
