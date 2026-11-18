@@ -81,20 +81,6 @@ public final class NativeAudioTapAnalyzer {
         return mix
     }
 
-    /// iOS 27 adds an all-audio-tracks tap for AVPlayerItem. This captures the
-    /// rendered mix rather than just the first AVAssetTrack; FairPlay-protected
-    /// audio remains excluded by the platform.
-    @available(iOS 27.0, *)
-    public func makeAudioMixForAllTracks() throws -> AVAudioMix {
-        let tap = try makeTap()
-        let parameters = AVMutableAudioMixInputParameters(track: nil)
-        parameters.trackID = AVAudioMixInputParametersTrackID.mixID.rawValue
-        parameters.audioTapProcessor = tap
-        let mix = AVMutableAudioMix()
-        mix.inputParameters = [parameters]
-        return mix
-    }
-
     private func makeTap() throws -> MTAudioProcessingTap {
         reset()
         let retainedCookie = Unmanaged.passRetained(TapCookie(analyzer: self))
