@@ -25,7 +25,7 @@ concurrency:
 jobs:
   build-unsigned-ipa:
     name: Build reconstructed Folia app target
-    runs-on: macos-26
+    runs-on: macos-26-intel
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -42,7 +42,7 @@ jobs:
       - name: Download and verify build-379 public payload
         # URL is single-use; mask it before any command output.
         env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucf39e765cab9c85f61bd11a3483.dl.dropboxusercontent.com/cd/0/get/DMIh-pgYy0wAYo_pZoekmFFLx_b_qjPtTkNkTk4YmV4PeYCcGycYIeUqXvcaAYN4FK3UZJsr0yGmjJO3x2glesRuoJECSdxPC_kW6_3oXaa60KqwtYcDwWA3hGXbdL19bipNhKTe3ZTGZ-3HIYxe9hAyJZbxcH2InwgoYRvwJzYBEA/file?c_luid=1235e37c' }}
+          PAYLOAD_URL: ${{ inputs.payload_url || 'https://ucfc33103c7ba3f66ba1980192d0.dl.dropboxusercontent.com/cd/0/get/DMIoQRdHsXt27iGy1nEQTntJgvnqeq5ICAKj4LikkChngjM56lnznm6PdQnZIE5HfLkiMPTsqfJrATZl3FYGO7UJHdStNp_FrZFyid6BOrvArTHTXmUpZT994_SvMbKEOJpaAiNLtei8CVDV0eKEmsTt1K4j0_lWxkRZ_XbU7xohbA/file?c_luid=1235e37c' }}
           EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
         run: |
           set -euo pipefail
