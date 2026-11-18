@@ -2,6 +2,17 @@ name: Deploy QQ Music API to Cloudflare
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - ios/esign-ipa
+    paths:
+      - 'worker/qq-api-only.ts'
+      - 'worker/qq.ts'
+      - 'worker/qqQrChannel.ts'
+      - 'wrangler.qq-api.jsonc'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/deploy-qq-api-cloudflare.yml'
 
 permissions:
   contents: read
