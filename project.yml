@@ -35,6 +35,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: top.izuna.foliaios
         PRODUCT_NAME: Folia
         INFOPLIST_KEY_CFBundleName: Folia
+        INFOPLIST_KEY_CFBundleShortVersionString: "3.0.6"
+        INFOPLIST_KEY_CFBundleVersion: "379"
         GENERATE_INFOPLIST_FILE: NO
         FRAMEWORK_SEARCH_PATHS: "$(inherited) $(PROJECT_DIR)/Frameworks"
         OTHER_LDFLAGS: "$(inherited) -framework NodeMobile"
