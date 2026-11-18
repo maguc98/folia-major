@@ -109,8 +109,10 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
     }
 
     deinit {
-        // The playback host owns observers and message handlers tied to this WebView.
-        // UIKit releases this controller on the main actor.
-        playbackHost?.shutdown()
+        // UIKit view controllers are released on the main thread. The host must remove
+        // WKScriptMessageHandlers and MediaPlayer/NotificationCenter registrations there.
+        MainActor.assumeIsolated {
+            playbackHost?.shutdown()
+        }
     }
 }
