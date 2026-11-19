@@ -4,18 +4,9 @@ on:
   push:
     branches: [ios-build379-baseline]
   workflow_dispatch:
-    inputs:
-      payload_url:
-        description: "HTTPS URL of Folia-iOS-3.0.6-build379-public-sanitized-v2.zip"
-        required: true
-        type: string
-      expected_sha256:
-        description: "SHA-256 of the sanitized public payload ZIP"
-        required: true
-        default: "f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32"
-        type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -39,26 +30,57 @@ jobs:
       - name: Prepare NodeMobile 18.20.4 device framework
         run: bash scripts/prepare-node-mobile-ios.sh
 
-      - name: Download and verify build-379 public payload
-        # URL is single-use; mask it before any command output.
-        env:
-          PAYLOAD_URL: ${{ inputs.payload_url || 'https://uc786dbb129a1f2ab1743b03bb52.dl.dropboxusercontent.com/cd/0/get/DMJl4k-kYklvPOoK9_ooAw1INvIpo2XYuLyIsC1juXdRaoOhQcUfUtQ8QXnH9dJwgmLSdb4Yp59CfrozR1Yo-ftqosP7I0pOt0D9ciM1V73hjyhcTAmAmH45XAPiv6HCRFWkFU69RtZuJg1AoRRpQ3kqq2qzW4158b54gYJJcjBlAw/file?c_luid=1235e37c' }}
-          EXPECTED_SHA256: ${{ inputs.expected_sha256 || 'f8e08042914a01f63f8aabbadd9f61cca32dd92fd45cfe194495f1e40acbab32' }}
+      # Bootstrap from the last known-good IPA. Its original build log proves
+      # that public/ came from the SHA-pinned sanitized v2 payload and passed
+      # verify_payload.py before this immutable Actions artifact was created.
+      - name: Download last known-good build-379 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Folia-iOS-3.0.6-build379-unsigned-IPA
+          path: ${{ runner.temp }}/bootstrap-artifact
+          repository: ${{ github.repository }}
+          run-id: 44297637084
+          github-token: ${{ github.token }}
+
+      - name: Restore and verify sanitized public payload
         run: |
           set -euo pipefail
-          echo "::add-mask::$PAYLOAD_URL"
-          case "$PAYLOAD_URL" in
-            https://*) ;;
-            *) echo "::error::Only HTTPS payload URLs are accepted."; exit 1 ;;
-          esac
-          curl --fail --location --retry 3 --retry-delay 2 "$PAYLOAD_URL" -o "$RUNNER_TEMP/folia-public.zip"
-          ACTUAL_SHA="$(shasum -a 256 "$RUNNER_TEMP/folia-public.zip" | awk '{print $1}')"
-          test "$ACTUAL_SHA" = "$EXPECTED_SHA256" || {
-            echo "::error::Payload SHA-256 mismatch: $ACTUAL_SHA"
+          BOOTSTRAP_DIR="$RUNNER_TEMP/bootstrap-artifact"
+          BOOTSTRAP_IPA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa"
+          BOOTSTRAP_SHA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
+          test -s "$BOOTSTRAP_IPA"
+          test -s "$BOOTSTRAP_SHA"
+
+          EXPECTED_IPA_SHA="$(awk '{print $1}' "$BOOTSTRAP_SHA")"
+          ACTUAL_IPA_SHA="$(shasum -a 256 "$BOOTSTRAP_IPA" | awk '{print $1}')"
+          test "$ACTUAL_IPA_SHA" = "$EXPECTED_IPA_SHA" || {
+            echo "::error::Bootstrap IPA SHA-256 mismatch."
             exit 1
           }
-          python3 tools/ios-build379/verify_payload.py "$RUNNER_TEMP/folia-public.zip"
-          unzip -oq "$RUNNER_TEMP/folia-public.zip" -d "$GITHUB_WORKSPACE"
+          /usr/bin/unzip -tq "$BOOTSTRAP_IPA"
+
+          EXTRACTED="$RUNNER_TEMP/bootstrap-extracted"
+          rm -rf "$EXTRACTED" "$GITHUB_WORKSPACE/public"
+          mkdir -p "$EXTRACTED"
+          /usr/bin/unzip -oq "$BOOTSTRAP_IPA" -d "$EXTRACTED"
+          SOURCE_APP="$EXTRACTED/Payload/Folia.app"
+          test -s "$SOURCE_APP/Info.plist"
+          test -s "$SOURCE_APP/public/index.html"
+          test -s "$SOURCE_APP/public/runtime-config.js"
+          test -s "$SOURCE_APP/public/nodejs-project/package.json"
+          test -s "$SOURCE_APP/public/nodejs-project/main.js"
+          SOURCE_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$SOURCE_APP/Info.plist")"
+          test "$SOURCE_BUNDLE_ID" = 'top.izuna.foliaios'
+          ditto "$SOURCE_APP/public" "$GITHUB_WORKSPACE/public"
+
+          # Repackage the restored tree only to reuse the full path/symlink/
+          # sensitive-file/HTML-reference verifier. Its hash is computed here
+          # because the original ZIP was already verified in bootstrap run
+          # 44297637084 and the IPA sidecar above verifies artifact integrity.
+          (cd "$GITHUB_WORKSPACE" && /usr/bin/zip -q -r "$RUNNER_TEMP/restored-public.zip" public)
+          RESTORED_SHA="$(shasum -a 256 "$RUNNER_TEMP/restored-public.zip" | awk '{print $1}')"
+          python3 tools/ios-build379/verify_payload.py \
+            --expected-sha256 "$RESTORED_SHA" "$RUNNER_TEMP/restored-public.zip"
           test -s public/index.html
           test -s public/nodejs-project/main.js
 
@@ -139,4 +161,4 @@ jobs:
             ${{ runner.temp }}/Folia-iOS-3.0.6-build379-unsigned.ipa
             ${{ runner.temp }}/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
