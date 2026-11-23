@@ -1,5 +1,6 @@
 name: Build Folia iOS 3.0.6 (379) unsigned IPA
 # Re-trigger after syncing this workflow to the repository default branch.
+# Build trigger refresh: package verification argument order has been corrected.
 
 on:
   push:
