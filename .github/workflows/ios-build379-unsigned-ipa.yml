@@ -129,7 +129,7 @@ jobs:
           test -s "$FRAMEWORK/NodeMobile"
           /usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$FRAMEWORK/Info.plist" | grep -Fx 'FMWK'
           /usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$FRAMEWORK/Info.plist" | grep -Fx 'NodeMobile'
-          xcrun lipo -verify_arch arm64 "$FRAMEWORK/NodeMobile"
+          xcrun lipo "$FRAMEWORK/NodeMobile" -verify_arch arm64
           chmod 755 "$FRAMEWORK/NodeMobile"
           # This is intentionally an unsigned hand-off package. Remove stale
           # signatures/profiles so the receiving signer can sign the app and
