@@ -121,7 +121,7 @@ jobs:
           test -s "$APP/public/nodejs-project/main.js"
           # Normalize the app-bundle metadata for third-party signing tools.
           /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 380' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 381' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :LSRequiresIPhoneOS true' "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Add :LSRequiresIPhoneOS bool true' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundlePackageType APPL' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundleExecutable Folia' "$APP/Info.plist"
@@ -311,9 +311,9 @@ jobs:
           echo "Built app metadata: bundle=$BUNDLE_ID version=${SHORT_VERSION:-missing} build=${BUILD_VERSION:-missing}"
           test "$BUNDLE_ID" = 'top.izuna.foliaios'
           test -n "$SHORT_VERSION" || SHORT_VERSION='3.0.6'
-          test -n "$BUILD_VERSION" || BUILD_VERSION='380'
+          test -n "$BUILD_VERSION" || BUILD_VERSION='381'
           test "$SHORT_VERSION" = '3.0.6'
-          test "$BUILD_VERSION" = '380'
+          test "$BUILD_VERSION" = '381'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
           ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa"
