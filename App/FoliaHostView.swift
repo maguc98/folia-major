@@ -18,7 +18,7 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 9 / 255, green: 9 / 255, blue: 11 / 255, alpha: 1)
+        view.backgroundColor = UIColor(red: 9.0 / 255.0, green: 9.0 / 255.0, blue: 11.0 / 255.0, alpha: 1)
 
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
@@ -48,16 +48,22 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
             nodeRuntimeDriver: FoliaNodeMobileRuntimeDriver()
         )
 
+        // Do not make the first screen depend on NodeMobile's async readiness.
+        // NodeMobile can keep its event loop alive indefinitely; awaiting its
+        // service bootstrap here previously prevented WKWebView from navigating,
+        // leaving the user on the native launch/logo screen with no diagnostics.
+        // Start the runtime independently, then load the bundled UI immediately.
         Task { [weak self] in
             guard let self else { return }
             do {
                 try await self.playbackHost?.startNodeRuntime()
+                NSLog("[Folia] NodeMobile runtime startup completed")
             } catch {
-                // Keep the UI available for diagnostics even if a local service fails.
                 NSLog("[Folia] NodeMobile startup failed: %@", String(describing: error))
             }
-            self.loadBundledWebAppIfPresent()
         }
+
+        loadBundledWebAppIfPresent()
     }
 
     private func loadBundledWebAppIfPresent() {
@@ -65,9 +71,11 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
         didLoadInitialPage = true
         guard let publicDirectory = Bundle.main.resourceURL?.appendingPathComponent("public", isDirectory: true),
               let indexURL = Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "public") else {
+            NSLog("[Folia] Bundled web payload missing: resourceURL=%@", String(describing: Bundle.main.resourceURL))
             showMissingPayloadMessage()
             return
         }
+        NSLog("[Folia] Loading bundled web app: %@", indexURL.path)
         webView.loadFileURL(indexURL, allowingReadAccessTo: publicDirectory)
     }
 
@@ -76,18 +84,24 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
         <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
         <style>body{margin:0;background:#09090b;color:#fff;font:16px -apple-system;padding:32px}
         h2{font-size:22px}p{color:#aaa;line-height:1.6}</style></head>
-        <body><h2>Folia 资源尚未打包</h2><p>原生容器已启动，但当前构建没有包含 public/index.html。请使用 build-379 清理资源包重新构建。</p></body></html>
+        <body><h2>Folia 资源尚未打包</h2><p>原生容器已启动，但当前构建没有包含 public/index.html。请检查 IPA 内的 public 资源目录。</p></body></html>
         """
         webView.loadHTMLString(html, baseURL: nil)
     }
 
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        NSLog("[Folia] WebView navigation started: %@", webView.url?.absoluteString ?? "(pending URL)")
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        NSLog("[Folia] WebView navigation finished: %@", webView.url?.absoluteString ?? "(unknown URL)")
         guard let playbackHost else { return }
         let playbackURL = Bundle.main.url(forResource: "apple-music-playback", withExtension: "js")
         let providerURL = Bundle.main.url(forResource: "apple-music-provider", withExtension: "js")
         guard let playbackURL, let providerURL,
               let playbackSource = try? String(contentsOf: playbackURL, encoding: .utf8),
               let providerSource = try? String(contentsOf: providerURL, encoding: .utf8) else {
+            NSLog("[Folia] Apple Music bridge resources are missing")
             return
         }
         playbackHost.installAppleMusicServices(
@@ -100,7 +114,16 @@ final class FoliaHostViewController: UIViewController, WKNavigationDelegate {
         }
     }
 
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        NSLog("[Folia] WebView navigation failed: %@", String(describing: error))
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        NSLog("[Folia] WebView provisional navigation failed: %@", String(describing: error))
+    }
+
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        NSLog("[Folia] WebView content process terminated")
         guard playbackHost?.handleWebContentProcessTermination() == true else {
             webView.reload()
             return
