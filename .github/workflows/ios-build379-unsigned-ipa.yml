@@ -38,7 +38,7 @@ jobs:
       - name: Download last known-good build-379 artifact
         uses: actions/download-artifact@v4
         with:
-          name: Folia-iOS-3.0.6-build380-unsigned-IPA
+          name: Folia-iOS-3.0.6-build379-unsigned-IPA
           path: ${{ runner.temp }}/bootstrap-artifact
           repository: ${{ github.repository }}
           run-id: 44297637084
@@ -48,8 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           BOOTSTRAP_DIR="$RUNNER_TEMP/bootstrap-artifact"
-          BOOTSTRAP_IPA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build380-unsigned.ipa"
-          BOOTSTRAP_SHA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256"
+          BOOTSTRAP_IPA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa"
+          BOOTSTRAP_SHA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
           test -s "$BOOTSTRAP_IPA"
           test -s "$BOOTSTRAP_SHA"
 
