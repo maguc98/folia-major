@@ -1,4 +1,4 @@
-name: Build Folia iOS 3.0.6 Build 381 unsigned IPA
+name: Build Folia iOS 3.0.6 Build 382 unsigned IPA
 # Re-trigger after syncing this workflow to the repository default branch.
 # Build trigger refresh: package verification argument order has been corrected.
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build381-livecontainer-ipa
+  group: folia-ios-build382-livecontainer-ipa
   cancel-in-progress: true
 
 jobs:
@@ -102,7 +102,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ENABLE_BITCODE=NO \
             MARKETING_VERSION=3.0.6 \
-            CURRENT_PROJECT_VERSION=381 \
+            CURRENT_PROJECT_VERSION=382 \
             build
 
       - name: Package unsigned IPA
@@ -121,7 +121,7 @@ jobs:
           test -s "$APP/public/nodejs-project/main.js"
           # Normalize the app-bundle metadata for third-party signing tools.
           /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 381' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 382' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :LSRequiresIPhoneOS true' "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Add :LSRequiresIPhoneOS bool true' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundlePackageType APPL' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundleExecutable Folia' "$APP/Info.plist"
@@ -311,23 +311,23 @@ jobs:
           echo "Built app metadata: bundle=$BUNDLE_ID version=${SHORT_VERSION:-missing} build=${BUILD_VERSION:-missing}"
           test "$BUNDLE_ID" = 'top.izuna.foliaios'
           test -n "$SHORT_VERSION" || SHORT_VERSION='3.0.6'
-          test -n "$BUILD_VERSION" || BUILD_VERSION='381'
+          test -n "$BUILD_VERSION" || BUILD_VERSION='382'
           test "$SHORT_VERSION" = '3.0.6'
-          test "$BUILD_VERSION" = '381'
+          test "$BUILD_VERSION" = '382'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
-          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa"
-          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa.sha256"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build382-unsigned.ipa"
+          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build382-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build382-unsigned.ipa.sha256"
           # Verify the required files are inside the final IPA, not just the checkout.
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build382-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build382-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Folia-iOS-3.0.6-build381-unsigned-IPA
+          name: Folia-iOS-3.0.6-build382-unsigned-IPA
           path: |
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build381-unsigned.ipa
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build381-unsigned.ipa.sha256
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build382-unsigned.ipa
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build382-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 90
