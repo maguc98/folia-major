@@ -1,10 +1,10 @@
-name: Build Folia iOS 3.0.6 Build 380 unsigned IPA
+name: Build Folia iOS 3.0.6 Build 381 unsigned IPA
 # Re-trigger after syncing this workflow to the repository default branch.
 # Build trigger refresh: package verification argument order has been corrected.
 
 on:
   push:
-    branches: [ios-build379-baseline, ios-build380-livecontainer-macho]
+    branches: [ios-build379-baseline, ios-build381-disable-undici-fetch]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build380-livecontainer-ipa
+  group: folia-ios-build381-livecontainer-ipa
   cancel-in-progress: true
 
 jobs:
@@ -102,7 +102,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ENABLE_BITCODE=NO \
             MARKETING_VERSION=3.0.6 \
-            CURRENT_PROJECT_VERSION=380 \
+            CURRENT_PROJECT_VERSION=381 \
             build
 
       - name: Package unsigned IPA
@@ -316,18 +316,18 @@ jobs:
           test "$BUILD_VERSION" = '380'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
-          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa"
-          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa"
+          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa.sha256"
           # Verify the required files are inside the final IPA, not just the checkout.
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build381-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Folia-iOS-3.0.6-build380-unsigned-IPA
+          name: Folia-iOS-3.0.6-build381-unsigned-IPA
           path: |
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build380-unsigned.ipa
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build381-unsigned.ipa
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build381-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 90
