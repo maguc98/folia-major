@@ -64,7 +64,12 @@ final class FoliaNodeMobileRuntimeDriver: FoliaNodeRuntimeDriver {
                 return
             }
 
-            let encodedArguments = ["node", "main.js"].map { Array($0.utf8) }
+            // NodeMobile's iOS build does not expose WebAssembly. Node 18's
+            // experimental global fetch lazily initializes Undici, whose
+            // llhttp WASM module throws "WebAssembly is not defined" on iOS.
+            // Disable only Node's built-in fetch bootstrap; Folia's local
+            // HTTP services and native URLSession bridge remain available.
+            let encodedArguments = ["node", "--no-experimental-fetch", "main.js"].map { Array($0.utf8) }
             let storageSize = encodedArguments.reduce(0) { $0 + $1.count + 1 }
             guard let storage = calloc(storageSize, MemoryLayout<CChar>.stride) else {
                 NSLog("[Folia] NodeMobile could not allocate argv storage")
