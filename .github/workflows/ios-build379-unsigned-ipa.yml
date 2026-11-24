@@ -1,10 +1,10 @@
-name: Build Folia iOS 3.0.6 (379) unsigned IPA
+name: Build Folia iOS 3.0.6 Build 380 unsigned IPA
 # Re-trigger after syncing this workflow to the repository default branch.
 # Build trigger refresh: package verification argument order has been corrected.
 
 on:
   push:
-    branches: [ios-build379-baseline]
+    branches: [ios-build379-baseline, ios-build380-livecontainer-macho]
   workflow_dispatch:
 
 permissions:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: folia-ios-build379-unsigned-ipa
+  group: folia-ios-build380-livecontainer-ipa
   cancel-in-progress: true
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
       - name: Download last known-good build-379 artifact
         uses: actions/download-artifact@v4
         with:
-          name: Folia-iOS-3.0.6-build379-unsigned-IPA
+          name: Folia-iOS-3.0.6-build380-unsigned-IPA
           path: ${{ runner.temp }}/bootstrap-artifact
           repository: ${{ github.repository }}
           run-id: 44297637084
@@ -48,8 +48,8 @@ jobs:
         run: |
           set -euo pipefail
           BOOTSTRAP_DIR="$RUNNER_TEMP/bootstrap-artifact"
-          BOOTSTRAP_IPA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa"
-          BOOTSTRAP_SHA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
+          BOOTSTRAP_IPA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build380-unsigned.ipa"
+          BOOTSTRAP_SHA="$BOOTSTRAP_DIR/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256"
           test -s "$BOOTSTRAP_IPA"
           test -s "$BOOTSTRAP_SHA"
 
@@ -102,7 +102,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             ENABLE_BITCODE=NO \
             MARKETING_VERSION=3.0.6 \
-            CURRENT_PROJECT_VERSION=379 \
+            CURRENT_PROJECT_VERSION=380 \
             build
 
       - name: Package unsigned IPA
@@ -121,7 +121,7 @@ jobs:
           test -s "$APP/public/nodejs-project/main.js"
           # Normalize the app-bundle metadata for third-party signing tools.
           /usr/libexec/PlistBuddy -c 'Set :CFBundleShortVersionString 3.0.6' "$APP/Info.plist"
-          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 379' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Set :CFBundleVersion 380' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :LSRequiresIPhoneOS true' "$APP/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c 'Add :LSRequiresIPhoneOS bool true' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundlePackageType APPL' "$APP/Info.plist"
           /usr/libexec/PlistBuddy -c 'Set :CFBundleExecutable Folia' "$APP/Info.plist"
@@ -138,29 +138,196 @@ jobs:
           # embedded framework consistently as one installation bundle.
           find "$APP" -type d -name _CodeSignature -prune -exec rm -rf {} +
           find "$APP" -type f -name embedded.mobileprovision -delete
+          # Remove an undeclared, unreferenced macOS-only Koffi native addon.
+          # LiveContainer scans every 64-bit Mach-O in the bundle for signing;
+          # this stray binary has segment/section ranges beyond its real file size.
+          python3 - "$APP" <<'PY'
+          import json, re, shutil, struct, sys
+          from pathlib import Path
+
+          app = Path(sys.argv[1])
+          node_root = app / "public/nodejs-project"
+          package_file = node_root / "package.json"
+          package = json.loads(package_file.read_text(encoding="utf-8"))
+          for group in ("dependencies", "optionalDependencies", "devDependencies"):
+              if "koffi" in package.get(group, {}):
+                  raise SystemExit("Refusing to remove Koffi: it is declared by the app.")
+          refs = []
+          for path in node_root.rglob("*"):
+              if not path.is_file() or "node_modules" in path.parts:
+                  continue
+              if path.suffix not in {".js", ".cjs", ".mjs", ".json"}:
+                  continue
+              if re.search(r"(?:@koromix/)?koffi(?:-darwin-arm64)?", path.read_text(encoding="utf-8", errors="ignore")):
+                  refs.append(str(path.relative_to(app)))
+          if refs:
+              raise SystemExit("Refusing to remove Koffi; app source references it: " + ", ".join(refs))
+          for rel in ("node_modules/koffi", "node_modules/@koromix/koffi-darwin-arm64"):
+              target = node_root / rel
+              if target.exists():
+                  shutil.rmtree(target)
+                  print("Removed undeclared optional native package:", target.relative_to(app))
+
+          MAGIC = 0xFEEDFACF
+          CPU_ARM64 = 0x0100000C
+          LC_SEGMENT_64 = 0x19
+          LC_CODE_SIGNATURE = 0x1D
+          LC_DYLD_CHAINED_FIXUPS = 0x80000034
+          RESERVE = 1024 * 1024
+          HEADER = 32
+          SEGMENT = 72
+          SECTION = 80
+          ZERO_TYPES = {0x1, 0xC, 0x12}
+          def align(v, n):
+              return (v + n - 1) & ~(n - 1)
+          def parse(path):
+              data = bytearray(path.read_bytes())
+              if len(data) < HEADER:
+                  raise ValueError(f"{path}: truncated Mach-O")
+              magic, cpu, subtype, filetype, ncmds, sizeofcmds, flags, reserved = struct.unpack_from("<IiiIIIII", data)
+              if magic != MAGIC or cpu != CPU_ARM64:
+                  raise ValueError(f"{path}: not a thin arm64 Mach-O")
+              end = HEADER + sizeofcmds
+              if end > len(data):
+                  raise ValueError(f"{path}: load-command table exceeds file")
+              cmds, off = [], HEADER
+              for i in range(ncmds):
+                  cmd, size = struct.unpack_from("<II", data, off)
+                  if size < 8 or size % 4 or off + size > end:
+                      raise ValueError(f"{path}: invalid load command {i}")
+                  cmds.append((off, cmd, size))
+                  off += size
+              if off != end:
+                  raise ValueError(f"{path}: load command table length mismatch")
+              textoff = None
+              linkedit = None
+              signature = None
+              segment_count = 0
+              chained_count = None
+              for off, cmd, size in cmds:
+                  if cmd == LC_SEGMENT_64:
+                      segment_count += 1
+                      name = bytes(data[off+8:off+24]).split(b"\0",1)[0]
+                      vmaddr, vmsize, fileoff, filesize = struct.unpack_from("<QQQQ", data, off+24)
+                      nsects = struct.unpack_from("<I", data, off+64)[0]
+                      if SEGMENT + nsects*SECTION > size:
+                          raise ValueError(f"{path}: invalid sections in {name!r}")
+                      if filesize and (fileoff + filesize > len(data)):
+                          raise ValueError(f"{path}: segment {name!r} exceeds file length")
+                      if name == b"__TEXT":
+                          for j in range(nsects):
+                              sec = off + SEGMENT + j*SECTION
+                              sectname = bytes(data[sec:sec+16]).split(b"\0",1)[0]
+                              if sectname == b"__text":
+                                  textoff = struct.unpack_from("<I", data, sec+48)[0]
+                              size64 = struct.unpack_from("<Q", data, sec+40)[0]
+                              section_off = struct.unpack_from("<I", data, sec+48)[0]
+                              section_type = struct.unpack_from("<I", data, sec+64)[0] & 0xFF
+                              if section_type not in ZERO_TYPES and size64 and section_off + size64 > len(data):
+                                  raise ValueError(f"{path}: section {sectname!r} exceeds file")
+                      elif name == b"__LINKEDIT":
+                          linkedit = (off, vmaddr, vmsize, fileoff, filesize)
+                  elif cmd == LC_CODE_SIGNATURE:
+                      dataoff, datasize = struct.unpack_from("<II", data, off+8)
+                      signature = (off, dataoff, datasize)
+                  elif cmd == LC_DYLD_CHAINED_FIXUPS:
+                      dataoff, datasize = struct.unpack_from("<II", data, off+8)
+                      if datasize < 8 or dataoff + datasize > len(data):
+                          raise ValueError(f"{path}: chained fixups exceed file")
+                      starts = struct.unpack_from("<I", data, dataoff+4)[0]
+                      if starts + 4 > datasize:
+                          raise ValueError(f"{path}: invalid chained fixups starts")
+                      chained_count = struct.unpack_from("<I", data, dataoff+starts)[0]
+              if textoff is None or linkedit is None:
+                  raise ValueError(f"{path}: missing __TEXT,__text or __LINKEDIT")
+              if chained_count is not None and chained_count != segment_count:
+                  raise ValueError(f"{path}: chained-fixups segment count mismatch")
+              return data, (filetype,ncmds,sizeofcmds), cmds, textoff, linkedit, signature, chained_count
+          files = []
+          for path in app.rglob("*"):
+              if not path.is_file():
+                  continue
+              try:
+                  magic = path.open("rb").read(4)
+              except OSError:
+                  continue
+              if magic in (b"\xcf\xfa\xed\xfe", b"\xca\xfe\xba\xbe"):
+                  files.append(path.resolve())
+          main = (app / "Folia").resolve()
+          framework = (app / "Frameworks/NodeMobile.framework/NodeMobile").resolve()
+          if set(files) != {main, framework}:
+              extras = [str(p.relative_to(app)) for p in set(files)-{main,framework}]
+              missing = [str(p.relative_to(app)) for p in {main,framework}-set(files)]
+              raise SystemExit(f"LiveContainer would scan unexpected Mach-O files: extras={extras}, missing={missing}")
+          reports = []
+          for path, expected_type in ((Path(main),2),(Path(framework),6)):
+              data, header, cmds, textoff, le, sig, chained = parse(path)
+              filetype,ncmds,sizeofcmds = header
+              if filetype != expected_type:
+                  raise SystemExit(f"{path.name}: unexpected Mach-O filetype {filetype}")
+              if sig:
+                  raise SystemExit(f"{path.name}: existing LC_CODE_SIGNATURE is unexpected")
+              free = textoff - (HEADER + sizeofcmds)
+              if free < 16:
+                  raise SystemExit(f"{path.name}: no space to add LC_CODE_SIGNATURE")
+              sigoff = align(len(data),16)
+              command = struct.pack("<IIII",LC_CODE_SIGNATURE,16,sigoff,RESERVE)
+              data[HEADER+sizeofcmds:HEADER+sizeofcmds+16] = command
+              struct.pack_into("<I",data,16,ncmds+1)
+              struct.pack_into("<I",data,20,sizeofcmds+16)
+              data.extend(b"\0"*(sigoff-len(data)))
+              data.extend(b"\0"*RESERVE)
+              off,vmaddr,vmsize,fileoff,filesize = le
+              if fileoff >= sigoff:
+                  raise SystemExit(f"{path.name}: __LINKEDIT begins after signature data")
+              delta = len(data)-path.stat().st_size
+              struct.pack_into("<Q",data,off+32,align(vmsize+delta,4096))
+              struct.pack_into("<Q",data,off+48,len(data)-fileoff)
+              path.write_bytes(data)
+              path.chmod(0o755)
+              verified = parse(path)
+              vdata,vhead,vcmds,vtext,vle,vsig,vchain = verified
+              if not vsig or vsig[2] < RESERVE or vsig[1]+vsig[2] > len(vdata):
+                  raise SystemExit(f"{path.name}: invalid preallocated signature region")
+              if any(vdata[vsig[1]:vsig[1]+vsig[2]]):
+                  raise SystemExit(f"{path.name}: signature reserve is not empty")
+              if vle[3]+vle[4] != len(vdata):
+                  raise SystemExit(f"{path.name}: __LINKEDIT does not cover signature reserve")
+              if path.name == "Folia":
+                  loader = b"@loader_path/../../Tweaks/TweakLoader.dylib"
+                  required = (24+align(len(b"Folia")+1,8)) + (24+align(len(loader)+1,8))
+                  if vtext-(HEADER+vhead[2]) < required:
+                      raise SystemExit("Folia lacks load-command room for LiveContainer's in-place patch")
+              reports.append({"file":path.name,"filetype":filetype,"load_commands":vhead[1],
+                              "free_load_command_bytes":free,"signature_offset":vsig[1],
+                              "signature_reserve":vsig[2],"file_size":len(vdata),
+                              "linkedit_end":vle[3]+vle[4],"chained_fixups_segments":vchain})
+          print("PASS: LiveContainer 3.8.13 Mach-O inventory/signature-reserve checks")
+          print(reports)
+          PY
           BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist")"
           SHORT_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Info.plist" 2>/dev/null || true)"
           BUILD_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Info.plist" 2>/dev/null || true)"
           echo "Built app metadata: bundle=$BUNDLE_ID version=${SHORT_VERSION:-missing} build=${BUILD_VERSION:-missing}"
           test "$BUNDLE_ID" = 'top.izuna.foliaios'
           test -n "$SHORT_VERSION" || SHORT_VERSION='3.0.6'
-          test -n "$BUILD_VERSION" || BUILD_VERSION='379'
+          test -n "$BUILD_VERSION" || BUILD_VERSION='380'
           test "$SHORT_VERSION" = '3.0.6'
-          test "$BUILD_VERSION" = '379'
+          test "$BUILD_VERSION" = '380'
           mkdir -p "$RUNNER_TEMP/ipa/Payload"
           ditto "$APP" "$RUNNER_TEMP/ipa/Payload/Folia.app"
-          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa"
-          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256"
+          ditto -c -k --sequesterRsrc --keepParent "$RUNNER_TEMP/ipa/Payload" "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa"
+          shasum -a 256 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" > "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256"
           # Verify the required files are inside the final IPA, not just the checkout.
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
-          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build379-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/index.html'
+          /usr/bin/unzip -Z1 "$RUNNER_TEMP/Folia-iOS-3.0.6-build380-unsigned.ipa" | grep -Fx 'Payload/Folia.app/public/nodejs-project/main.js'
 
       - name: Upload unsigned IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Folia-iOS-3.0.6-build379-unsigned-IPA
+          name: Folia-iOS-3.0.6-build380-unsigned-IPA
           path: |
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build379-unsigned.ipa
-            ${{ runner.temp }}/Folia-iOS-3.0.6-build379-unsigned.ipa.sha256
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build380-unsigned.ipa
+            ${{ runner.temp }}/Folia-iOS-3.0.6-build380-unsigned.ipa.sha256
           if-no-files-found: error
           retention-days: 90
